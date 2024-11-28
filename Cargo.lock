@@ -4370,20 +4370,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gg"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "blueprint-metadata",
- "color-eyre",
- "gadget-sdk",
- "structopt",
- "tokio",
- "tracing",
- "tracing-subscriber 0.3.18",
-]
-
-[[package]]
 name = "ghash"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9278,6 +9264,20 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest 0.10.7",
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "silent-timelock-encryption-blueprint"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "blueprint-metadata",
+ "color-eyre",
+ "gadget-sdk",
+ "structopt",
+ "tokio",
+ "tracing",
+ "tracing-subscriber 0.3.18",
 ]
 
 [[package]]
