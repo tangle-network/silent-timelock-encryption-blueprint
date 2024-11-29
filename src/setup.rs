@@ -18,7 +18,7 @@ pub struct SilentThresholdEncryptionKeypair {
     pub public_key: Vec<u8>,
 }
 
-pub async fn setup<E: Pairing>(
+pub fn setup<E: Pairing>(
     n: u32,
     party_id: u32,
     params: PowersOfTau<E>,

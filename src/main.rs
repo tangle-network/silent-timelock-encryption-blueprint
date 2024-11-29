@@ -36,7 +36,6 @@ async fn main() -> Result<()> {
                 .expect("operator should be present for the service");
             let new_keypair =
                 setup::<Bn254>(operators.len() as u32, my_operator_position as u32, params)
-                    .await
                     .expect("Failed to generate keypair");
 
             context.secret_key_store.set(KEYPAIR_KEY, new_keypair);
