@@ -1713,13 +1713,13 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f8754ff7a709cf0643f82093fff582192a36afe3b075cde8e752ad9e39d35ed"
+checksum = "0fdf5db63e122f8393d9cfbbd636cff2ba3aed0141cc8f832bd1a0191830ec92"
 dependencies = [
  "cargo_metadata",
  "fs2",
- "gadget-blueprint-proc-macro-core 0.1.5",
+ "gadget-blueprint-proc-macro-core 0.2.0",
  "rustdoc-types",
  "serde",
  "serde_json",
