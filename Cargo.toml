@@ -20,6 +20,16 @@ structopt = "0.3.26"
 tokio = { version = "^1", default-features = false, features = ["full"] }
 tracing-subscriber = { version = "0.3", features = ["parking_lot", "env-filter"] }
 
+# Silent Threshold Encryption dependencies
+silent-threshold-encryption = { git = "https://github.com/guruvamsi-policharla/silent-threshold-encryption.git" }
+ark-std = { version = "0.5.0" }
+ark-ec = { version = "0.5.0" }
+ark-ff = { version = "0.5.0" }
+ark-poly = { version = "0.5.0" }
+ark-bls12-381 = { version = "0.5.0" }
+ark-bn254 = { version = "0.5.0" }
+ark-serialize = { version = "0.5.0" }
+
 [dependencies.gadget-sdk]
 version = "0.5.1"
 default-features = false
