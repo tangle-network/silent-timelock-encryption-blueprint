@@ -13,7 +13,7 @@ use sdk::ctx::ServicesContext;
 use sdk::runners::tangle::TangleConfig;
 use sdk::runners::BlueprintRunner;
 use sdk::subxt_core::tx::signer::Signer;
-use silent_threshold_encryption::kzg::KZG10;
+use silent_threshold_encryption::kzg::{PowersOfTau, KZG10};
 use silent_timelock_encryption_blueprint::context::{ServiceContext, KEYPAIR_KEY};
 use silent_timelock_encryption_blueprint::jobs::DecryptCiphertextEventHandler;
 use silent_timelock_encryption_blueprint::setup::{setup, SilentThresholdEncryptionKeypair};
@@ -30,49 +30,7 @@ async fn main() -> Result<()> {
     let context = ServiceContext::new(env.clone(), params.clone())?;
 
     // Check if keypair exists in local db, otherwise generate and save it
-    match context.secret_key_store.get(KEYPAIR_KEY) {
-        Some(_) => {}
-        _ => {
-            let client = env.client().await?;
-            let signer = env.first_sr25519_signer()?;
-            let service_id = env.service_id().unwrap();
-            let operators = context.current_service_operators(&client).await?;
-            let my_operator_position = operators
-                .iter()
-                .position(|op| op.0 == signer.account_id())
-                .expect("operator should be present for the service");
-            let new_keypair =
-                setup::<Bn254>(operators.len() as u32, my_operator_position as u32, params)
-                    .expect("Failed to generate keypair");
-
-            // Submit the STE public key to the blueprint contract
-            let blueprint_id = context.blueprint_id()?;
-            let blueprint_storage_key = api::storage().services().blueprints(blueprint_id);
-            let blueprint: ServiceBlueprint = client
-                .storage()
-                .at_latest()
-                .await?
-                .fetch(&blueprint_storage_key)
-                .await
-                .map(|op| {
-                    if let Some(op) = op {
-                        op.1
-                    } else {
-                        panic!("Blueprint not found")
-                    }
-                })?;
-
-            let blueprint_contract_address = match blueprint.manager {
-                BlueprintManager::Evm(address) => Address::from(address.to_fixed_bytes()),
-            };
-            submit_ste_public_key(&env, service_id, &new_keypair, blueprint_contract_address)
-                .await?;
-
-            context.secret_key_store.set(KEYPAIR_KEY, new_keypair);
-        }
-    };
-
-    tracing::info!("Generated keypair for service");
+    ensure_keypair_exists(&context, &env, params).await?;
 
     // Create the event handler from the job
     let decrypt_ciphertext = DecryptCiphertextEventHandler::new(&env, context.clone()).await?;
@@ -85,6 +43,52 @@ async fn main() -> Result<()> {
         .await?;
 
     tracing::info!("Exiting...");
+    Ok(())
+}
+
+async fn ensure_keypair_exists(
+    context: &ServiceContext,
+    env: &StdGadgetConfiguration,
+    params: PowersOfTau<Bn254>,
+) -> Result<()> {
+    if context.secret_key_store.get(KEYPAIR_KEY).is_none() {
+        let client = env.client().await?;
+        let signer = env.first_sr25519_signer()?;
+        let service_id = env.service_id().unwrap();
+        let operators = context.current_service_operators(&client).await?;
+        let my_operator_position = operators
+            .iter()
+            .position(|op| op.0 == signer.account_id())
+            .expect("operator should be present for the service");
+
+        let new_keypair =
+            setup::<Bn254>(operators.len() as u32, my_operator_position as u32, params)
+                .expect("Failed to generate keypair");
+        tracing::info!("Generated keypair for service");
+        // Submit the STE public key to the blueprint contract
+        let blueprint_id = context.blueprint_id()?;
+        let blueprint_storage_key = api::storage().services().blueprints(blueprint_id);
+        let blueprint: ServiceBlueprint = client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&blueprint_storage_key)
+            .await
+            .map(|op| {
+                if let Some(op) = op {
+                    op.1
+                } else {
+                    panic!("Blueprint not found")
+                }
+            })?;
+
+        let blueprint_contract_address = match blueprint.manager {
+            BlueprintManager::Evm(address) => Address::from(address.to_fixed_bytes()),
+        };
+        submit_ste_public_key(env, service_id, &new_keypair, blueprint_contract_address).await?;
+
+        context.secret_key_store.set(KEYPAIR_KEY, new_keypair);
+    }
     Ok(())
 }
 
