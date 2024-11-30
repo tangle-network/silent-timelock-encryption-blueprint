@@ -21,7 +21,7 @@ pub struct SilentThresholdEncryptionKeypair {
 pub fn setup<E: Pairing>(
     n: u32,
     party_id: u32,
-    params: PowersOfTau<E>,
+    params: &PowersOfTau<E>,
 ) -> Result<SilentThresholdEncryptionKeypair, gadget_sdk::Error> {
     let mut rng = ark_std::test_rng();
     let sk: SecretKey<E> = SecretKey::<E>::new(&mut rng);

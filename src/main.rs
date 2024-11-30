@@ -62,7 +62,7 @@ async fn ensure_keypair_exists(
             .expect("operator should be present for the service");
 
         let new_keypair =
-            setup::<Bn254>(operators.len() as u32, my_operator_position as u32, params)
+            setup::<Bn254>(operators.len() as u32, my_operator_position as u32, &params)
                 .expect("Failed to generate keypair");
         tracing::info!("Generated keypair for service");
         // Submit the STE public key to the blueprint contract

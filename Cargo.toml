@@ -52,6 +52,14 @@ version = "0.5.1"
 default-features = false
 features = ["getrandom"]
 
+[dev-dependencies]
+tokio = { version = "^1", default-features = false, features = ["full", "rt-multi-thread"] }
+proptest = { version = "1.5.0", default-features = false, features = ["std", "bit-set", "fork", "timeout"] }
+blueprint-test-utils = { version = "0.1", default-features = false, features = ["std"] }
+test-strategy = { version = "0.4.0", default-features = false }
+round-based = { version = "0.3.0", default-features = false, features = ["derive", "dev"] }
+rand = "0.8.1"
+
 [build-dependencies]
 blueprint-metadata = "0.1.7"
 
