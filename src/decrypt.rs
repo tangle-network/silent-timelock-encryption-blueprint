@@ -70,9 +70,9 @@ pub async fn threshold_decrypt_protocol<M, E: Pairing>(
     i: PartyIndex,
     t: u16,
     n: u16,
-    secret_key: SecretKey<E>,
-    ciphertext: Ciphertext<E>,
-    agg_key: AggregateKey<E>,
+    secret_key: &SecretKey<E>,
+    ciphertext: &Ciphertext<E>,
+    agg_key: &AggregateKey<E>,
     params: &PowersOfTau<E>,
 ) -> Result<DecryptState, DecryptError>
 where
@@ -130,6 +130,7 @@ where
 
     // Compute final decryption if we have enough partial decryptions
     if state.partial_decryptions.len() >= (t + 1) as usize {
+        println!("Got enough partial decryptions. Computing final decryption!");
         let dec_key = agg_dec(
             &state
                 .partial_decryptions

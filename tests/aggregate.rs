@@ -3,28 +3,15 @@ use ark_ec::pairing::Pairing;
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
 use blueprint_test_utils::setup_log;
-use proptest::prelude::*;
+use gadget_sdk::tracer::PerfProfiler;
 use round_based::simulation::Simulation;
 use silent_threshold_encryption::encryption::encrypt;
 use silent_threshold_encryption::kzg::KZG10;
-use silent_timelock_encryption_blueprint::context::ServiceContext;
 use silent_timelock_encryption_blueprint::decrypt::Msg;
-use std::borrow::Borrow;
-use test_strategy::proptest;
-use test_strategy::Arbitrary;
+use std::sync::Arc;
+use tokio::time::error::Error;
 
-// use rand::rngs::StdRng;
-// use rand::SeedableRng;
-
-#[derive(Arbitrary, Debug, Clone, Copy)]
-struct TestInputArgs {
-    #[strategy(3..10u16)]
-    n: u16,
-    #[strategy(2..#n)]
-    t: u16,
-}
-
-#[proptest(async = "tokio", cases = 20, fork = true)]
+#[tokio::test]
 async fn it_works() {
     setup_log();
     setup_ste_keys().await;
@@ -40,7 +27,6 @@ async fn setup_ste_keys() {
     let n = 8usize;
     let t = 4usize;
 
-    let mut simulation = Simulation::<Msg>::new();
     let mut parsed_ste_pk = vec![];
     let mut parsed_ste_sk = vec![];
     for i in 0..n {
@@ -76,7 +62,7 @@ async fn setup_ste_keys() {
         selector.push(false);
     }
 
-    let _dec_key = silent_threshold_encryption::decryption::agg_dec(
+    let dec_key = silent_threshold_encryption::decryption::agg_dec(
         &partial_decryptions,
         &ct,
         &selector,
@@ -84,46 +70,109 @@ async fn setup_ste_keys() {
         &params,
     );
 
-    assert_eq!(_dec_key, ct.enc_key);
+    assert_eq!(dec_key, ct.enc_key);
 
     // instantiate parties and simulate decryption
+    println!("Instantiating parties and simulating decryption\n");
+
+    let parsed_ste_sk = Arc::new(parsed_ste_sk);
+    let ct = Arc::new(ct);
+    let agg_key = Arc::new(agg_key);
+    let params = Arc::new(params);
+
+    let mut simulation = Simulation::<Msg>::new();
+    let mut tasks = vec![];
+    for i in 0..n {
+        let party = simulation.add_party();
+        let output = tokio::spawn({
+            let ct_clone = Arc::clone(&ct); // Clone the Arc for the async block
+            let parsed_ste_sk_clone = Arc::clone(&parsed_ste_sk);
+            let agg_key_clone = Arc::clone(&agg_key);
+            let params_clone = Arc::clone(&params);
+            async move {
+                let output =
+                    silent_timelock_encryption_blueprint::decrypt::threshold_decrypt_protocol(
+                        party,
+                        i as u16,
+                        t as u16,
+                        n as u16,
+                        &parsed_ste_sk_clone[i],
+                        &ct_clone,
+                        &agg_key_clone,
+                        &params_clone,
+                    )
+                    .await
+                    .unwrap();
+                Result::<_, Error>::Ok(output)
+            }
+        });
+        tasks.push(output);
+    }
+
+    let mut outputs = Vec::with_capacity(tasks.len());
+    for task in tasks {
+        outputs.push(task.await.unwrap().unwrap());
+    }
 }
 
-// async fn run_keygen<C>(args: &TestInputArgs) -> Result<(), TestCaseError>
-// where
-//     C: Ciphersuite + Send + Unpin,
-//     <<C as Ciphersuite>::Group as Group>::Element: Send + Unpin,
-//     <<<C as Ciphersuite>::Group as Group>::Field as frost_core::Field>::Scalar: Send + Unpin,
-// {
-//     let TestInputArgs { n, t } = *args;
-//     prop_assume!(frost_core::keys::validate_num_of_signers::<C>(t, n).is_ok());
+// async fn run_signing<C>(args: &TestInputArgs) -> Result<(), TestCaseError>
+//     where
+//         C: Ciphersuite + Send + Unpin + Sync,
+//         <<C as Ciphersuite>::Group as Group>::Element: Send + Unpin + Sync,
+//         <<<C as Ciphersuite>::Group as Group>::Field as frost_core::Field>::Scalar:
+//             Send + Unpin + Sync,
+//     {
+//         let TestInputArgs { n, t, msg } = *args;
+//         let keygen_output = run_keygen::<C>(args).await?;
+//         let public_key = keygen_output
+//             .values()
+//             .map(|(_, pkg)| pkg.clone())
+//             .next()
+//             .unwrap();
+//         let rng = &mut StdRng::from_seed(msg);
+//         let signers = keygen_output
+//             .into_iter()
+//             .choose_multiple(rng, usize::from(t));
+//         let signer_set = signers.iter().map(|(i, _)| *i).collect::<Vec<_>>();
 
-//     eprintln!("Running a {} {t}-out-of-{n} Keygen", C::ID);
-//     let mut simulation = Simulation::<Msg<C>>::new();
-//     let mut tasks = vec![];
-//     for i in 0..n {
-//         let party = simulation.add_party();
-//         let output = tokio::spawn(async move {
-//             let rng = &mut StdRng::seed_from_u64(u64::from(i + 1));
-//             let mut tracer = PerfProfiler::new();
-//             let output = run(rng, t, n, i, party, Some(tracer.borrow_mut())).await?;
-//             let report = tracer.get_report().unwrap();
-//             eprintln!("Party {} report: {}\n", i, report);
-//             Result::<_, Error<C>>::Ok(output)
-//         });
-//         tasks.push(output);
-//     }
+//         eprintln!("Running a {} {t}-out-of-{n} Signing", C::ID);
+//         let mut simulation = Simulation::<Msg<C>>::new();
+//         let mut tasks = vec![];
+//         for (i, (key_pkg, pub_key_pkg)) in signers {
+//             let party = simulation.add_party();
+//             let signer_set = signer_set.clone();
+//             let msg = msg.to_vec();
+//             let output = tokio::spawn(async move {
+//                 let rng = &mut StdRng::seed_from_u64(u64::from(i + 1));
+//                 let mut tracer = PerfProfiler::new();
+//                 let output = run(
+//                     rng,
+//                     &key_pkg,
+//                     &pub_key_pkg,
+//                     &signer_set,
+//                     &msg,
+//                     party,
+//                     Some(tracer.borrow_mut()),
+//                 )
+//                 .await?;
+//                 let report = tracer.get_report().unwrap();
+//                 eprintln!("Party {} report: {}\n", i, report);
+//                 Result::<_, Error<C>>::Ok((i, output))
+//             });
+//             tasks.push(output);
+//         }
 
-//     let mut outputs = Vec::with_capacity(tasks.len());
-//     for task in tasks {
-//         outputs.push(task.await.unwrap());
-//     }
-//     let outputs = outputs.into_iter().collect::<Result<Vec<_>, _>>()?;
-//     // Assert that all parties outputed the same public key
-//     let (_, pubkey_pkg) = &outputs[0];
-//     for (_, other_pubkey_pkg) in outputs.iter().skip(1) {
-//         prop_assert_eq!(pubkey_pkg, other_pubkey_pkg);
-//     }
+//         let mut outputs = Vec::with_capacity(tasks.len());
+//         for task in tasks {
+//             outputs.push(task.await.unwrap());
+//         }
+//         let outputs = outputs.into_iter().collect::<Result<BTreeMap<_, _>, _>>()?;
+//         // Assert that all parties produced a valid signature
+//         let signature = outputs.values().next().unwrap();
+//         C::verify_signature(&msg, signature, public_key.verifying_key())?;
+//         for other_signature in outputs.values().skip(1) {
+//             prop_assert_eq!(signature, other_signature);
+//         }
 
-//     Ok(())
-// }
+//         Ok(())
+//     }

@@ -86,9 +86,9 @@ pub async fn decrypt_ciphertext(
         i as u16,
         threshold as u16,
         num_parties as u16,
-        secret_key,
-        ciphertext,
-        agg_key,
+        &secret_key,
+        &ciphertext,
+        &agg_key,
         &context.params,
     )
     .await?;
