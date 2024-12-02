@@ -96,10 +96,9 @@ where
 
     // Generate partial decryption
     let p_decryption = secret_key.partial_decryption(&ciphertext);
-    println!(
-        "My public key: {:?}",
-        secret_key.get_pk(i as usize, &params, n as usize)
-    );
+    if i == 0 {
+        println!("Partial decryption: {:?}", p_decryption);
+    }
 
     // Broadcast partial decryption
     let broadcast_msg = Msg::Round1Broadcast(Msg1 {
@@ -139,7 +138,8 @@ where
                 from_bytes::<E::G2>(&state.partial_decryptions.get(j).unwrap());
         }
 
-        println!("Received partial decryptions: {:?}", partial_decryptions);
+        println!("selector: {:?}", selector);
+        println!("partial decryptions[0]: {}", partial_decryptions[0]);
 
         let dec_key = agg_dec(
             &partial_decryptions,
