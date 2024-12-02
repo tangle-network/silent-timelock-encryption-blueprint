@@ -32,7 +32,9 @@ mod e2e {
     use blueprint_test_utils::test_ext::*;
     use blueprint_test_utils::*;
     use cargo_tangle::deploy::Opts;
+    use eigenlayer_test_env::get_provider_http;
     use gadget_sdk::subxt_core::tx::signer::Signer;
+    use gadget_sdk::tangle_subxt::parity_scale_codec::Encode;
     use gadget_sdk::{error, info};
     use silent_threshold_encryption::kzg::{PowersOfTau, KZG10};
 
@@ -81,20 +83,10 @@ mod e2e {
             .await
             .execute_with_async(move |client, handles, svcs| async move {
                 let keypair = handles[0].sr25519_id().clone();
-                let blueprint_manager = match svcs.blueprint.manager {
+                let blueprint_manager_address = match svcs.blueprint.manager {
                     BlueprintManager::Evm(contract_address) => contract_address.0.into(),
                 };
-
-                let signer = cargo_tangle::signer::load_evm_signer_from_env().unwrap();
-                let wallet = alloy_network::EthereumWallet::from(signer);
-
                 let ws_rpc_url = format!("ws://127.0.0.1:{ws_port}");
-                let provider = alloy_provider::ProviderBuilder::new()
-                    .with_recommended_fillers()
-                    .wallet(wallet)
-                    .on_ws(alloy_provider::WsConnect::new(ws_rpc_url))
-                    .await
-                    .unwrap();
 
                 // Setup the parameters for testing
                 let max_degree = 1 << 10;
@@ -116,10 +108,19 @@ mod e2e {
                 let service = svcs.services.last().unwrap();
                 let service_id = service.id;
 
-                // Register the STE public keys for each operator with the contract
-                let contract = SilentTimelockEncryptionBlueprint::new(blueprint_manager, provider);
+                for (index, keypair) in keypairs.iter().enumerate() {
+                    let signer = handles[index].ecdsa_id().alloy_key().unwrap();
+                    let wallet = alloy_network::EthereumWallet::from(signer);
+                    let provider = alloy_provider::ProviderBuilder::new()
+                        .with_recommended_fillers()
+                        .wallet(wallet)
+                        .on_ws(alloy_provider::WsConnect::new(ws_rpc_url.clone()))
+                        .await
+                        .unwrap();
+                    // Register the STE public keys for each operator with the contract
+                    let contract =
+                        SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
 
-                for keypair in keypairs.iter() {
                     // Submit the public key
                     contract
                         .registerSTEPublicKey(
@@ -134,6 +135,13 @@ mod e2e {
                         .expect("Failed to get receipt");
                 }
 
+                let provider = alloy_provider::ProviderBuilder::new()
+                    .with_recommended_fillers()
+                    .on_ws(alloy_provider::WsConnect::new(ws_rpc_url))
+                    .await
+                    .unwrap();
+                let contract =
+                    SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
                 // Verify all public keys were registered correctly
                 let registered_keys = contract
                     .getAllSTEPublicKeys(service_id)
@@ -192,7 +200,7 @@ mod e2e {
 
                 // Deserialize the decryption state
                 let decrypt_state: DecryptState =
-                    serde_json::from_slice(&job_results.result[0].as_bytes().unwrap())
+                    serde_json::from_slice(&job_results.result.encode())
                         .expect("Failed to deserialize decrypt state");
 
                 // Verify we have enough partial decryptions
