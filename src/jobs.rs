@@ -1,13 +1,17 @@
+use alloy_primitives::Address;
 use api::services::events::JobCalled;
 use ark_bn254::Bn254;
 use gadget_sdk::compute_sha256_hash;
+use gadget_sdk::ctx::TangleClientContext;
+use gadget_sdk::docker::bollard::service;
 use gadget_sdk::network::round_based_compat::NetworkDeliveryWrapper;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::BlueprintManager;
 use gadget_sdk::{self as sdk};
 use sdk::event_listener::tangle::{
     jobs::{services_post_processor, services_pre_processor},
     TangleEventListener,
 };
-use sdk::tangle_subxt::tangle_testnet_runtime::api;
+use sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 use silent_threshold_encryption::encryption::Ciphertext;
 use silent_threshold_encryption::setup::{AggregateKey, SecretKey};
 use sp_core::ecdsa::Public;
@@ -16,6 +20,7 @@ use std::collections::BTreeMap;
 use crate::context::{ServiceContext, KEYPAIR_KEY};
 use crate::decrypt::{threshold_decrypt_protocol, DecryptError};
 use crate::setup::from_bytes;
+use crate::SilentTimelockEncryptionBlueprint;
 
 /// Decrypts a ciphertext using the threshold decryption protocol
 #[sdk::job(
@@ -36,6 +41,22 @@ pub async fn decrypt_ciphertext(
     let blueprint_id = context
         .blueprint_id()
         .map_err(|e| DecryptError::ContextError(e.to_string()))?;
+    let blueprint_address_key = api::services::storage::StorageApi.blueprints(blueprint_id);
+    let blueprint_manager_address = context
+        .tangle_client()
+        .await
+        .unwrap()
+        .storage()
+        .at_latest()
+        .await
+        .unwrap()
+        .fetch(&blueprint_address_key)
+        .await
+        .unwrap()
+        .map(|v| match v.1.manager {
+            BlueprintManager::Evm(address) => Address::from(address.0),
+        })
+        .unwrap();
     let call_id = context
         .current_call_id()
         .await
@@ -77,7 +98,21 @@ pub async fn decrypt_ciphertext(
     );
 
     let party = round_based::party::MpcParty::connected(network);
-    // TODO: Implement the AggregateKey struct properly
+    let ws_rpc_endpoint = &context.config.ws_rpc_endpoint;
+    let service_id = context.config.service_id().unwrap();
+    let provider = alloy_provider::ProviderBuilder::new()
+        .with_recommended_fillers()
+        .on_ws(alloy_provider::WsConnect::new(ws_rpc_endpoint))
+        .await
+        .unwrap();
+    let contract = SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
+    // Verify all public keys were registered correctly
+    let registered_keys = contract
+        .getAllSTEPublicKeys(service_id)
+        .call()
+        .await
+        .map(|v| v._0)
+        .expect("Failed to get registered public keys");
     let pk = vec![];
     let agg_key = AggregateKey::<Bn254>::new(pk, &context.params);
     // Run the decryption protocol
