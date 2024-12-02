@@ -96,9 +96,6 @@ where
 
     // Generate partial decryption
     let p_decryption = secret_key.partial_decryption(&ciphertext);
-    if i == 0 {
-        println!("Partial decryption: {:?}", p_decryption);
-    }
 
     // Broadcast partial decryption
     let broadcast_msg = Msg::Round1Broadcast(Msg1 {
@@ -106,12 +103,21 @@ where
         data: to_bytes(p_decryption.clone()),
     });
 
+    if i == 0 {
+        println!("Partial decryption of party 0: {:?}", p_decryption);
+        let pd_bytes = to_bytes(p_decryption.clone());
+        let should_be_pd = from_bytes::<E::G2>(&pd_bytes);
+        if let Msg::Round1Broadcast(msg) = broadcast_msg.clone() {
+            println!("data sent: {:?}", msg.data);
+        }
+    }
+
     send_message::<M, E>(broadcast_msg, &mut outgoings).await?;
 
     // Insert own partial decryption
     state
         .partial_decryptions
-        .insert(i as usize, to_bytes(p_decryption));
+        .insert(i as usize, to_bytes::<E::G2>(p_decryption));
 
     // Collect other partial decryptions
     let round1_broadcasts = rounds
@@ -139,7 +145,14 @@ where
         }
 
         println!("selector: {:?}", selector);
-        println!("partial decryptions[0]: {}", partial_decryptions[0]);
+        println!(
+            "partial decryptions[0] bytes received: {:?}",
+            &state.partial_decryptions.get(&0usize).unwrap()
+        );
+        println!(
+            "Searialized partial decryptions[0] bytes received: {:?}",
+            from_bytes::<E::G2>(&state.partial_decryptions.get(&0usize).unwrap())
+        );
 
         let dec_key = agg_dec(
             &partial_decryptions,
