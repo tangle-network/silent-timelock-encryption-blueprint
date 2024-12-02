@@ -10661,6 +10661,7 @@ dependencies = [
  "async-trait",
  "blueprint-metadata",
  "blueprint-test-utils",
+ "cargo-tangle",
  "color-eyre",
  "gadget-sdk",
  "k256",
