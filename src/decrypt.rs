@@ -123,7 +123,7 @@ where
     );
 
     // Compute final decryption if we have enough partial decryptions
-    if i == 0 && state.partial_decryptions.len() >= (t + 1) as usize {
+    if state.partial_decryptions.len() >= (t + 1) as usize {
         println!("Got enough partial decryptions. Computing final decryption!");
 
         // Create selector vector
@@ -138,15 +138,6 @@ where
         for j in t + 1..n {
             selector[j as usize] = false;
         }
-
-        println!(
-            "partial decryptions[0] bytes received: {:?}",
-            &state.partial_decryptions.get(&0usize).unwrap()
-        );
-        println!(
-            "Searialized partial decryptions[0] bytes received: {:?}",
-            from_bytes::<E::G2>(&state.partial_decryptions.get(&0usize).unwrap())
-        );
 
         let dec_key = agg_dec(
             &partial_decryptions,
