@@ -3,10 +3,11 @@ use ark_ec::pairing::Pairing;
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
 use blueprint_test_utils::setup_log;
-use gadget_sdk::tracer::PerfProfiler;
+use rand::thread_rng;
 use round_based::simulation::Simulation;
 use silent_threshold_encryption::encryption::encrypt;
 use silent_threshold_encryption::kzg::KZG10;
+use silent_threshold_encryption::setup::SecretKey;
 use silent_timelock_encryption_blueprint::decrypt::Msg;
 use std::sync::Arc;
 use tokio::time::error::Error;
@@ -29,7 +30,13 @@ async fn setup_ste_keys() {
 
     let mut parsed_ste_pk = vec![];
     let mut parsed_ste_sk = vec![];
-    for i in 0..n {
+
+    let mut rng = thread_rng();
+    parsed_ste_sk.push(SecretKey::<Bn254>::new(&mut rng));
+    parsed_ste_sk[0].nullify();
+    parsed_ste_pk.push(parsed_ste_sk[0].get_pk(0, &params, n));
+
+    for i in 1..n {
         let new_keypair = silent_timelock_encryption_blueprint::setup::setup::<Bn254>(
             n as u32, i as u32, &params,
         )
@@ -53,6 +60,8 @@ async fn setup_ste_keys() {
         .iter()
         .map(|sk| sk.partial_decryption(&ct))
         .collect::<Vec<_>>();
+
+    println!("partial decryptions: {:?}", partial_decryptions);
 
     let mut selector: Vec<bool> = Vec::new();
     for _ in 0..t + 1 {
@@ -113,6 +122,8 @@ async fn setup_ste_keys() {
     for task in tasks {
         outputs.push(task.await.unwrap().unwrap());
     }
+
+    println!("Tasks completed");
 }
 
 // async fn run_signing<C>(args: &TestInputArgs) -> Result<(), TestCaseError>

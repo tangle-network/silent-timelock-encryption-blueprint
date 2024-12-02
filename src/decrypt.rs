@@ -1,4 +1,5 @@
 use ark_ec::pairing::Pairing;
+use ark_std::Zero;
 use round_based::SinkExt;
 use round_based::{
     rounds_router::{simple_store::RoundInput, RoundsRouter},
@@ -13,7 +14,6 @@ use silent_threshold_encryption::{
     setup::{AggregateKey, SecretKey},
 };
 use std::collections::BTreeMap;
-use std::num::NonZeroUsize;
 
 use crate::setup::{from_bytes, to_bytes};
 
@@ -83,11 +83,11 @@ where
     let mut state = DecryptState::default();
 
     // Convert parameters
-    let i = NonZeroUsize::new(i as usize).expect("I > 0");
-    let n = NonZeroUsize::new(n as usize).expect("N > 0");
-    let t = NonZeroUsize::new(t as usize).expect("T > 0");
+    // let i = NonZeroUsize::new(i as usize).expect("I > 0");
+    // let n = NonZeroUsize::new(n as usize).expect("N > 0");
+    // let t = NonZeroUsize::new(t as usize).expect("T > 0");
 
-    let (i, t, n) = (i.get() as u16, t.get() as u16, n.get() as u16);
+    // let (i, t, n) = (i.get() as u16, t.get() as u16, n.get() as u16);
 
     // Setup round router
     let mut rounds = RoundsRouter::builder();
@@ -96,6 +96,10 @@ where
 
     // Generate partial decryption
     let p_decryption = secret_key.partial_decryption(&ciphertext);
+    println!(
+        "My public key: {:?}",
+        secret_key.get_pk(i as usize, &params, n as usize)
+    );
 
     // Broadcast partial decryption
     let broadcast_msg = Msg::Round1Broadcast(Msg1 {
@@ -122,21 +126,23 @@ where
             .map(|r| (r.2.source as usize, r.2.data)),
     );
 
-    // Create selector vector
-    let mut selector: Vec<bool> = vec![false; n as usize];
-    for i in state.partial_decryptions.keys() {
-        selector[*i] = true;
-    }
-
     // Compute final decryption if we have enough partial decryptions
-    if state.partial_decryptions.len() >= (t + 1) as usize {
+    if i == 0 && state.partial_decryptions.len() >= (t + 1) as usize {
         println!("Got enough partial decryptions. Computing final decryption!");
+
+        // Create selector vector
+        let mut selector: Vec<bool> = vec![false; n as usize];
+        let mut partial_decryptions: Vec<E::G2> = vec![E::G2::zero(); n as usize];
+        for j in state.partial_decryptions.keys() {
+            selector[*j] = true;
+            partial_decryptions[*j] =
+                from_bytes::<E::G2>(&state.partial_decryptions.get(j).unwrap());
+        }
+
+        println!("Received partial decryptions: {:?}", partial_decryptions);
+
         let dec_key = agg_dec(
-            &state
-                .partial_decryptions
-                .values()
-                .map(|bytes| from_bytes::<E::G2>(bytes))
-                .collect::<Vec<_>>(),
+            &partial_decryptions,
             &ciphertext,
             &selector,
             &agg_key,
