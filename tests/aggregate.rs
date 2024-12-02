@@ -61,8 +61,6 @@ async fn setup_ste_keys() {
         .map(|sk| sk.partial_decryption(&ct))
         .collect::<Vec<_>>();
 
-    println!("Partial decryptions[0]: {:?}", partial_decryptions[0]);
-
     let mut selector: Vec<bool> = Vec::new();
     for _ in 0..t + 1 {
         selector.push(true);

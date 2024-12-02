@@ -103,13 +103,15 @@ where
         data: to_bytes(p_decryption.clone()),
     });
 
+    let pd_bytes = to_bytes(p_decryption.clone());
+    let should_be_pd = from_bytes::<E::G2>(&pd_bytes);
+    println!("should_be_pd: {:?}", should_be_pd);
+    assert_eq!(should_be_pd, p_decryption);
+
     if i == 0 {
         println!("Partial decryption of party 0: {:?}", p_decryption);
-        let pd_bytes = to_bytes(p_decryption.clone());
-        let should_be_pd = from_bytes::<E::G2>(&pd_bytes);
-        if let Msg::Round1Broadcast(msg) = broadcast_msg.clone() {
-            println!("data sent: {:?}", msg.data);
-        }
+        let Msg::Round1Broadcast(msg) = broadcast_msg.clone();
+        println!("data sent: {:?}", msg.data);
     }
 
     send_message::<M, E>(broadcast_msg, &mut outgoings).await?;
@@ -144,7 +146,6 @@ where
                 from_bytes::<E::G2>(&state.partial_decryptions.get(j).unwrap());
         }
 
-        println!("selector: {:?}", selector);
         println!(
             "partial decryptions[0] bytes received: {:?}",
             &state.partial_decryptions.get(&0usize).unwrap()
