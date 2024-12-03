@@ -1,5 +1,5 @@
 use ark_bn254::Bn254;
-use ark_ec::pairing::Pairing;
+use ark_ec::pairing::{Pairing, PairingOutput};
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
 use blueprint_test_utils::setup_log;
@@ -9,6 +9,7 @@ use silent_threshold_encryption::encryption::encrypt;
 use silent_threshold_encryption::kzg::KZG10;
 use silent_threshold_encryption::setup::SecretKey;
 use silent_timelock_encryption_blueprint::decrypt::Msg;
+use silent_timelock_encryption_blueprint::setup::from_bytes;
 use std::sync::Arc;
 use tokio::time::error::Error;
 
@@ -120,6 +121,10 @@ async fn setup_ste_keys() {
     for task in tasks {
         outputs.push(task.await.unwrap().unwrap());
     }
+
+    let dec_key_bytes = outputs[0].decryption_result.as_ref().unwrap();
+    let dec_key: PairingOutput<Bn254> = from_bytes(&dec_key_bytes);
+    assert_eq!(dec_key, ct.enc_key);
 
     println!("Tasks completed");
 }
