@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::time::error::Error;
 
 #[tokio::test]
-async fn it_works() {
+async fn simulate_decryption() {
     setup_log();
     setup_ste_keys().await;
 }
@@ -81,8 +81,6 @@ async fn setup_ste_keys() {
     assert_eq!(dec_key, ct.enc_key);
 
     // instantiate parties and simulate decryption
-    println!("Instantiating parties and simulating decryption\n");
-
     let parsed_ste_sk = Arc::new(parsed_ste_sk);
     let ct = Arc::new(ct);
     let agg_key = Arc::new(agg_key);
@@ -128,65 +126,3 @@ async fn setup_ste_keys() {
 
     println!("Tasks completed");
 }
-
-// async fn run_signing<C>(args: &TestInputArgs) -> Result<(), TestCaseError>
-//     where
-//         C: Ciphersuite + Send + Unpin + Sync,
-//         <<C as Ciphersuite>::Group as Group>::Element: Send + Unpin + Sync,
-//         <<<C as Ciphersuite>::Group as Group>::Field as frost_core::Field>::Scalar:
-//             Send + Unpin + Sync,
-//     {
-//         let TestInputArgs { n, t, msg } = *args;
-//         let keygen_output = run_keygen::<C>(args).await?;
-//         let public_key = keygen_output
-//             .values()
-//             .map(|(_, pkg)| pkg.clone())
-//             .next()
-//             .unwrap();
-//         let rng = &mut StdRng::from_seed(msg);
-//         let signers = keygen_output
-//             .into_iter()
-//             .choose_multiple(rng, usize::from(t));
-//         let signer_set = signers.iter().map(|(i, _)| *i).collect::<Vec<_>>();
-
-//         eprintln!("Running a {} {t}-out-of-{n} Signing", C::ID);
-//         let mut simulation = Simulation::<Msg<C>>::new();
-//         let mut tasks = vec![];
-//         for (i, (key_pkg, pub_key_pkg)) in signers {
-//             let party = simulation.add_party();
-//             let signer_set = signer_set.clone();
-//             let msg = msg.to_vec();
-//             let output = tokio::spawn(async move {
-//                 let rng = &mut StdRng::seed_from_u64(u64::from(i + 1));
-//                 let mut tracer = PerfProfiler::new();
-//                 let output = run(
-//                     rng,
-//                     &key_pkg,
-//                     &pub_key_pkg,
-//                     &signer_set,
-//                     &msg,
-//                     party,
-//                     Some(tracer.borrow_mut()),
-//                 )
-//                 .await?;
-//                 let report = tracer.get_report().unwrap();
-//                 eprintln!("Party {} report: {}\n", i, report);
-//                 Result::<_, Error<C>>::Ok((i, output))
-//             });
-//             tasks.push(output);
-//         }
-
-//         let mut outputs = Vec::with_capacity(tasks.len());
-//         for task in tasks {
-//             outputs.push(task.await.unwrap());
-//         }
-//         let outputs = outputs.into_iter().collect::<Result<BTreeMap<_, _>, _>>()?;
-//         // Assert that all parties produced a valid signature
-//         let signature = outputs.values().next().unwrap();
-//         C::verify_signature(&msg, signature, public_key.verifying_key())?;
-//         for other_signature in outputs.values().skip(1) {
-//             prop_assert_eq!(signature, other_signature);
-//         }
-
-//         Ok(())
-//     }

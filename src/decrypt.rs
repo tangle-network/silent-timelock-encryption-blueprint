@@ -82,13 +82,6 @@ where
     let (incomings, mut outgoings) = delivery.split();
     let mut state = DecryptState::default();
 
-    // Convert parameters
-    // let i = NonZeroUsize::new(i as usize).expect("I > 0");
-    // let n = NonZeroUsize::new(n as usize).expect("N > 0");
-    // let t = NonZeroUsize::new(t as usize).expect("T > 0");
-
-    // let (i, t, n) = (i.get() as u16, t.get() as u16, n.get() as u16);
-
     // Setup round router
     let mut rounds = RoundsRouter::builder();
     let round1 = rounds.add_round(RoundInput::<Msg1>::broadcast(i, n));
@@ -124,8 +117,6 @@ where
 
     // Compute final decryption if we have enough partial decryptions
     if state.partial_decryptions.len() >= (t + 1) as usize {
-        println!("Got enough partial decryptions. Computing final decryption!");
-
         // Create selector vector
         let mut selector: Vec<bool> = vec![false; n as usize];
         let mut partial_decryptions: Vec<E::G2> = vec![E::G2::zero(); n as usize];
