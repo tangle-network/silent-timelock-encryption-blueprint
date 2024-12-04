@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: UNLICENSE
 pragma solidity >=0.8.13;
 
-import "tnt-core/BlueprintServiceManagerBase.sol";
+import "contracts/lib/tnt-core/src/BlueprintServiceManagerBase.sol";
 
 contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     // Mapping from service ID to a list of operator addresses
     mapping(uint64 => address[]) private serviceOperators;
-    
+
     // Mapping from service ID to a mapping of operator address to their STE public key
     mapping(uint64 => mapping(address => bytes)) private operatorSTEPublicKeys;
 
-    function onRegister(
-        ServiceOperators.OperatorPreferences calldata operator,
-        bytes calldata registrationInputs
-    )
+    function onRegister(ServiceOperators.OperatorPreferences calldata operator, bytes calldata registrationInputs)
         public
         payable
         override
-        onlyFromRootChain
+        onlyFromMaster
     {
         // Implementation remains empty as per original code
     }
@@ -33,10 +30,10 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
         public
         payable
         override
-        onlyFromRootChain
+        onlyFromMaster
     {
         // Store the operators for this service
-        for (uint i = 0; i < operators.length; i++) {
+        for (uint256 i = 0; i < operators.length; i++) {
             serviceOperators[requestId].push(operatorAddressFromPublicKey(operators[i].ecdsaPublicKey));
         }
     }
@@ -69,7 +66,7 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     function getAllSTEPublicKeys(uint64 serviceId) external view returns (bytes[] memory) {
         address[] memory operators = serviceOperators[serviceId];
         bytes[] memory publicKeys = new bytes[](operators.length);
-        for (uint i = 0; i < operators.length; i++) {
+        for (uint256 i = 0; i < operators.length; i++) {
             publicKeys[i] = operatorSTEPublicKeys[serviceId][operators[i]];
         }
         return publicKeys;
@@ -77,7 +74,7 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
 
     function isOperatorOfService(address operator, uint64 serviceId) internal view returns (bool) {
         address[] memory operators = serviceOperators[serviceId];
-        for (uint i = 0; i < operators.length; i++) {
+        for (uint256 i = 0; i < operators.length; i++) {
             if (operators[i] == operator) {
                 return true;
             }
