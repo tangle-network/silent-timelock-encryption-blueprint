@@ -26,7 +26,7 @@ pub fn setup<E: Pairing>(
 ) -> Result<SilentThresholdEncryptionKeypair, gadget_sdk::Error> {
     let mut rng = thread_rng();
     let sk: SecretKey<E> = SecretKey::<E>::new(&mut rng);
-    let pk: PublicKey<E> = sk.get_pk(party_id as usize, &params, n as usize);
+    let pk: PublicKey<E> = sk.get_pk(party_id as usize, params, n as usize);
 
     let secret_key = to_bytes(sk);
     let public_key = to_bytes(pk);

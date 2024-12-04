@@ -1,5 +1,4 @@
 use alloy_sol_types::sol;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
 
 pub mod context;
 pub mod decrypt;
@@ -15,15 +14,16 @@ sol!(
     "contracts/out/SilentTimelockEncryptionBlueprint.sol/SilentTimelockEncryptionBlueprint.json",
 );
 
-#[cfg(all(test))]
+#[cfg(test)]
 mod e2e {
     use super::*;
     use crate::decrypt::DecryptState;
-    use crate::setup::{setup, Curve};
-    use alloy_primitives::{Bytes, U256};
+    use crate::setup::setup;
+    use alloy_primitives::Bytes;
+    use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
     use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
     use api::runtime_types::tangle_primitives::services::field::Field;
-    use api::runtime_types::tangle_primitives::services::BlueprintManager;
+    use api::runtime_types::tangle_primitives::services::BlueprintServiceManager;
     use api::services::calls::types::call::Args;
     use ark_bn254::Bn254;
     use ark_ec::pairing::Pairing;
@@ -32,7 +32,6 @@ mod e2e {
     use blueprint_test_utils::test_ext::*;
     use blueprint_test_utils::*;
     use cargo_tangle::deploy::Opts;
-    use eigenlayer_test_env::get_provider_http;
     use gadget_sdk::subxt_core::tx::signer::Signer;
     use gadget_sdk::tangle_subxt::parity_scale_codec::Encode;
     use gadget_sdk::{error, info};
@@ -84,7 +83,7 @@ mod e2e {
             .execute_with_async(move |client, handles, svcs| async move {
                 let keypair = handles[0].sr25519_id().clone();
                 let blueprint_manager_address = match svcs.blueprint.manager {
-                    BlueprintManager::Evm(contract_address) => contract_address.0.into(),
+                    BlueprintServiceManager::Evm(contract_address) => contract_address.0.into(),
                 };
                 let ws_rpc_url = format!("ws://127.0.0.1:{ws_port}");
 

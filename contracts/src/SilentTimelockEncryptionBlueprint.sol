@@ -14,7 +14,7 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
         public
         payable
         override
-        onlyFromRootChain
+        onlyFromMaster
     {
         // Implementation remains empty as per original code
     }
@@ -26,7 +26,12 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
         bytes calldata requestInputs,
         address[] calldata permittedCallers,
         uint64 ttl
-    ) public payable override onlyFromRootChain {
+    )
+        public
+        payable
+        override
+        onlyFromMaster
+    {
         // Store the operators for this service
         for (uint256 i = 0; i < operators.length; i++) {
             serviceOperators[requestId].push(operatorAddressFromPublicKey(operators[i].ecdsaPublicKey));

@@ -39,19 +39,10 @@ pub struct PartialDecryptionMessage {
     pub partial_decryption: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DecryptState {
     pub partial_decryptions: BTreeMap<usize, Vec<u8>>,
     pub decryption_result: Option<Vec<u8>>,
-}
-
-impl Default for DecryptState {
-    fn default() -> Self {
-        Self {
-            partial_decryptions: BTreeMap::new(),
-            decryption_result: None,
-        }
-    }
 }
 
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -65,6 +56,7 @@ pub struct Msg1 {
     data: Vec<u8>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn threshold_decrypt_protocol<M, E: Pairing>(
     party: M,
     i: PartyIndex,
@@ -88,12 +80,12 @@ where
     let mut rounds = rounds.listen(incomings);
 
     // Generate partial decryption
-    let p_decryption = secret_key.partial_decryption(&ciphertext);
+    let p_decryption = secret_key.partial_decryption(ciphertext);
 
     // Broadcast partial decryption
     let broadcast_msg = Msg::Round1Broadcast(Msg1 {
         source: i,
-        data: to_bytes(p_decryption.clone()),
+        data: to_bytes(p_decryption),
     });
 
     send_message::<M, E>(broadcast_msg, &mut outgoings).await?;
@@ -123,7 +115,7 @@ where
         for j in state.partial_decryptions.keys() {
             selector[*j] = true;
             partial_decryptions[*j] =
-                from_bytes::<E::G2>(&state.partial_decryptions.get(j).unwrap());
+                from_bytes::<E::G2>(state.partial_decryptions.get(j).unwrap());
         }
 
         for j in t + 1..n {
@@ -132,10 +124,10 @@ where
 
         let dec_key = agg_dec(
             &partial_decryptions,
-            &ciphertext,
+            ciphertext,
             &selector,
-            &agg_key,
-            &params,
+            agg_key,
+            params,
         );
         state.decryption_result = Some(to_bytes(dec_key));
     }

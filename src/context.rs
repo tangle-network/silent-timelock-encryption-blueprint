@@ -5,7 +5,7 @@ use gadget_sdk::subxt_core::tx::signer::Signer;
 use gadget_sdk::subxt_core::utils::AccountId32;
 use gadget_sdk::{
     self as sdk,
-    ctx::{KeystoreContext, ServicesContext, TangleClientContext},
+    contexts::{KeystoreContext, ServicesContext, TangleClientContext},
     network::NetworkMultiplexer,
     store::LocalDatabase,
     subxt_core::ext::sp_core::ecdsa,
@@ -53,8 +53,8 @@ impl ServiceContext {
 
         Ok(Self {
             params,
-            secret_key_store: secret_key_store,
-            decrypt_state_store: decrypt_state_store,
+            secret_key_store,
+            decrypt_state_store,
             identity,
             config,
             network_backend: Arc::new(NetworkMultiplexer::new(gossip_handle)),

@@ -2,10 +2,9 @@ use alloy_primitives::Address;
 use api::services::events::JobCalled;
 use ark_bn254::Bn254;
 use gadget_sdk::compute_sha256_hash;
-use gadget_sdk::ctx::TangleClientContext;
-use gadget_sdk::docker::bollard::service;
+use gadget_sdk::contexts::TangleClientContext;
 use gadget_sdk::network::round_based_compat::NetworkDeliveryWrapper;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::BlueprintManager;
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::BlueprintServiceManager;
 use gadget_sdk::{self as sdk};
 use sdk::event_listener::tangle::{
     jobs::{services_post_processor, services_pre_processor},
@@ -54,7 +53,7 @@ pub async fn decrypt_ciphertext(
         .await
         .unwrap()
         .map(|v| match v.1.manager {
-            BlueprintManager::Evm(address) => Address::from(address.0),
+            BlueprintServiceManager::Evm(address) => Address::from(address.0),
         })
         .unwrap();
     let call_id = context
@@ -119,7 +118,7 @@ pub async fn decrypt_ciphertext(
     let decryption = threshold_decrypt_protocol(
         party,
         i as u16,
-        threshold as u16,
+        threshold,
         num_parties as u16,
         &secret_key,
         &ciphertext,

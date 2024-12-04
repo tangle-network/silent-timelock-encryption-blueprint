@@ -121,7 +121,7 @@ async fn setup_ste_keys() {
     }
 
     let dec_key_bytes = outputs[0].decryption_result.as_ref().unwrap();
-    let dec_key: PairingOutput<Bn254> = from_bytes(&dec_key_bytes);
+    let dec_key: PairingOutput<Bn254> = from_bytes(dec_key_bytes);
     assert_eq!(dec_key, ct.enc_key);
 
     println!("Tasks completed");

@@ -4,12 +4,12 @@ use ark_ec::pairing::Pairing;
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
 use color_eyre::Result;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{BlueprintManager, ServiceBlueprint};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{BlueprintServiceManager, ServiceBlueprint};
 use gadget_sdk as sdk;
 use gadget_sdk::config::StdGadgetConfiguration;
 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
 use gadget_sdk::utils::evm::get_provider_http;
-use sdk::ctx::ServicesContext;
+use sdk::contexts::ServicesContext;
 use sdk::runners::tangle::TangleConfig;
 use sdk::runners::BlueprintRunner;
 use sdk::subxt_core::tx::signer::Signer;
@@ -83,7 +83,7 @@ async fn ensure_keypair_exists(
             })?;
 
         let blueprint_contract_address = match blueprint.manager {
-            BlueprintManager::Evm(address) => Address::from(address.to_fixed_bytes()),
+            BlueprintServiceManager::Evm(address) => Address::from(address.to_fixed_bytes()),
         };
         submit_ste_public_key(env, service_id, &new_keypair, blueprint_contract_address).await?;
 
