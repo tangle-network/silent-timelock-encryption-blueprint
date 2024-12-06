@@ -122,7 +122,7 @@ version = "0.1.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4932d790c723181807738cf1ac68198ab581cd699545b155601332541ee47bd"
 dependencies = [
- "alloy-primitives 0.8.9",
+ "alloy-primitives 0.8.14",
  "num_enum",
  "strum",
 ]
@@ -219,15 +219,15 @@ dependencies = [
 
 [[package]]
 name = "alloy-json-rpc"
-version = "0.4.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8fa8a1a3c4cbd221f2b8e3693aeb328fca79a757fe556ed08e47bbbc2a70db7"
+checksum = "4fa077efe0b834bcd89ff4ba547f48fb081e4fdc3673dd7da1b295a2cf2bb7b7"
 dependencies = [
- "alloy-primitives 0.8.9",
- "alloy-sol-types 0.8.9",
+ "alloy-primitives 0.8.14",
+ "alloy-sol-types 0.8.14",
  "serde",
  "serde_json",
- "thiserror 1.0.65",
+ "thiserror 2.0.3",
  "tracing",
 ]
 
@@ -275,9 +275,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-primitives"
-version = "0.8.9"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c71738eb20c42c5fb149571e76536a0f309d142f3957c28791662b96baf77a3d"
+checksum = "9db948902dfbae96a73c2fbf1f7abec62af034ab883e4c777c3fd29702bd6e2c"
 dependencies = [
  "alloy-rlp",
  "bytes",
@@ -402,14 +402,14 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-client"
-version = "0.4.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370143ed581aace6e663342d21d209c6b2e34ee6142f7d6675adb518deeaf0dc"
+checksum = "ed30bf1041e84cabc5900f52978ca345dd9969f2194a945e6fdec25b0620705c"
 dependencies = [
- "alloy-json-rpc 0.4.2",
- "alloy-primitives 0.8.9",
- "alloy-transport 0.4.2",
- "alloy-transport-http 0.4.2",
+ "alloy-json-rpc 0.7.3",
+ "alloy-primitives 0.8.14",
+ "alloy-transport 0.7.3",
+ "alloy-transport-http 0.7.3",
  "futures",
  "pin-project",
  "reqwest 0.12.8",
@@ -420,6 +420,7 @@ dependencies = [
  "tower 0.5.1",
  "tracing",
  "url",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -631,11 +632,11 @@ dependencies = [
 
 [[package]]
 name = "alloy-sol-types"
-version = "0.8.9"
+version = "0.8.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "086f41bc6ebcd8cb15f38ba20e47be38dd03692149681ce8061c35d960dbf850"
+checksum = "c9dc0fffe397aa17628160e16b89f704098bf3c9d74d5d369ebc239575936de5"
 dependencies = [
- "alloy-primitives 0.8.9",
+ "alloy-primitives 0.8.14",
  "alloy-sol-macro 0.8.14",
  "const-hex",
 ]
@@ -661,21 +662,22 @@ dependencies = [
 
 [[package]]
 name = "alloy-transport"
-version = "0.4.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ac3e97dad3d31770db0fc89bd6a63b789fbae78963086733f960cf32c483904"
+checksum = "d69d36982b9e46075ae6b792b0f84208c6c2c15ad49f6c500304616ef67b70e0"
 dependencies = [
- "alloy-json-rpc 0.4.2",
+ "alloy-json-rpc 0.7.3",
  "base64 0.22.1",
  "futures-util",
  "futures-utils-wasm",
  "serde",
  "serde_json",
- "thiserror 1.0.65",
+ "thiserror 2.0.3",
  "tokio",
  "tower 0.5.1",
  "tracing",
  "url",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -695,12 +697,12 @@ dependencies = [
 
 [[package]]
 name = "alloy-transport-http"
-version = "0.4.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b367dcccada5b28987c2296717ee04b9a5637aacd78eacb1726ef211678b5212"
+checksum = "2e02ffd5d93ffc51d72786e607c97de3b60736ca3e636ead0ec1f7dce68ea3fd"
 dependencies = [
- "alloy-json-rpc 0.4.2",
- "alloy-transport 0.4.2",
+ "alloy-json-rpc 0.7.3",
+ "alloy-transport 0.7.3",
  "reqwest 0.12.8",
  "serde_json",
  "tower 0.5.1",
@@ -9754,7 +9756,7 @@ dependencies = [
  "alloy-network",
  "alloy-primitives 0.7.7",
  "alloy-provider",
- "alloy-rpc-client 0.4.2",
+ "alloy-rpc-client 0.7.3",
  "alloy-signer",
  "alloy-signer-local",
  "alloy-sol-types 0.7.7",
@@ -12255,6 +12257,20 @@ dependencies = [
  "serde",
  "thiserror 1.0.65",
  "wasmparser",
+]
+
+[[package]]
+name = "wasmtimer"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0048ad49a55b9deb3953841fa1fc5858f0efbcb7a18868c899a360269fac1b23"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot",
+ "pin-utils",
+ "slab",
+ "wasm-bindgen",
 ]
 
 [[package]]
