@@ -10,45 +10,6 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     // Mapping from service ID to a mapping of operator address to their STE public key
     mapping(uint64 => mapping(address => bytes)) private operatorSTEPublicKeys;
 
-    function onRegister(ServiceOperators.OperatorPreferences calldata operator, bytes calldata registrationInputs)
-        public
-        payable
-        override
-        onlyFromMaster
-    {
-        // Implementation remains empty as per original code
-    }
-
-    function onRequest(
-        uint64 requestId,
-        address requester,
-        ServiceOperators.OperatorPreferences[] calldata operators,
-        bytes calldata requestInputs,
-        address[] calldata permittedCallers,
-        uint64 ttl
-    )
-        public
-        payable
-        override
-        onlyFromMaster
-    {
-        // Store the operators for this service
-        for (uint256 i = 0; i < operators.length; i++) {
-            serviceOperators[requestId].push(operatorAddressFromPublicKey(operators[i].ecdsaPublicKey));
-        }
-    }
-
-    function onJobResult(
-        uint64 serviceId,
-        uint8 job,
-        uint64 jobCallId,
-        ServiceOperators.OperatorPreferences calldata operator,
-        bytes calldata inputs,
-        bytes calldata outputs
-    ) public payable virtual override onlyFromRootChain {
-        // Implementation remains empty as per original code
-    }
-
     function operatorAddressFromPublicKey(bytes calldata publicKey) internal pure returns (address operator) {
         return address(uint160(uint256(keccak256(publicKey))));
     }

@@ -122,13 +122,7 @@ where
             selector[j as usize] = false;
         }
 
-        let dec_key = agg_dec(
-            &partial_decryptions,
-            ciphertext,
-            &selector,
-            agg_key,
-            params,
-        );
+        let dec_key = agg_dec(&partial_decryptions, ciphertext, &selector, agg_key, params);
         state.decryption_result = Some(to_bytes(dec_key));
     }
 

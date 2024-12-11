@@ -48,21 +48,23 @@ alloy-json-abi = "0.8.12"
 alloy-sol-types = "0.8.12"
 alloy-contract = { version = "0.5" }
 
-[dependencies.gadget-sdk]
-version = "0.6.1"
-default-features = false
-features = ["getrandom"]
+# gadget-sdk = { version = "0.6.1", default-features = false, features = ["getrandom"] }
+gadget-sdk = { git = "https://github.com/tangle-network/gadget", default-features = false, features = ["getrandom"] }
 
 [dev-dependencies]
 tokio = { version = "^1", default-features = false, features = ["full", "rt-multi-thread"] }
 proptest = { version = "1.5.0", default-features = false, features = ["std", "bit-set", "fork", "timeout"] }
-blueprint-test-utils = { version = "0.2.1", default-features = false, features = ["std"] }
 test-strategy = { version = "0.4.0", default-features = false }
 round-based = { version = "0.3.0", default-features = false, features = ["derive", "dev"] }
-cargo-tangle = "0.3.0"
+# cargo-tangle = "0.3.0"
+cargo-tangle = { git = "https://github.com/tangle-network/gadget", default-features = false }
+
+# blueprint-test-utils = { version = "0.2.1", default-features = false, features = ["std"] }
+blueprint-test-utils = { git = "https://github.com/tangle-network/gadget", default-features = false }
 
 [build-dependencies]
-blueprint-metadata = "0.2.0"
+# blueprint-metadata = "0.2.0"
+blueprint-metadata = { git = "https://github.com/tangle-network/gadget", default-features = false }
 
 [features]
 default = ["std"]

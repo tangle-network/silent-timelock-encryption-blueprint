@@ -23,6 +23,8 @@ use crate::setup::SilentThresholdEncryptionKeypair;
 pub struct ServiceContext {
     #[config]
     pub config: sdk::config::StdGadgetConfiguration,
+    #[call_id]
+    pub call_id: Option<u64>,
     pub network_backend: Arc<NetworkMultiplexer>,
     pub secret_key_store: Arc<LocalDatabase<SilentThresholdEncryptionKeypair>>,
     pub decrypt_state_store: Arc<LocalDatabase<DecryptState>>,
@@ -53,6 +55,7 @@ impl ServiceContext {
 
         Ok(Self {
             params,
+            call_id: None,
             secret_key_store,
             decrypt_state_store,
             identity,
