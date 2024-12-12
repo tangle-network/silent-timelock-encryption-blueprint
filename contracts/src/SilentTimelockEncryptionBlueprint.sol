@@ -5,10 +5,10 @@ import "dependencies/tnt-core-0.1.0/src/BlueprintServiceManagerBase.sol";
 
 contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     // Mapping from service ID to a list of operator addresses
-    mapping(uint64 => address[]) private serviceOperators;
+    mapping(uint64 => address[]) public serviceOperators;
 
     // Mapping from service ID to a mapping of operator address to their STE public key
-    mapping(uint64 => mapping(address => bytes)) private operatorSTEPublicKeys;
+    mapping(uint64 => mapping(address => bytes)) public operatorSTEPublicKeys;
 
     function onRequest(ServiceOperators.RequestParams memory params) external payable override onlyFromMaster {
         // Store the operators for this service
@@ -47,5 +47,9 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
             }
         }
         return false;
+    }
+
+    function getOperatorsOfService(uint64 serviceId) external view returns (address[] memory) {
+        return serviceOperators[serviceId];
     }
 }

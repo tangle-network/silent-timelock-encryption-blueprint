@@ -19,7 +19,7 @@ mod e2e {
     use super::*;
     use crate::decrypt::DecryptState;
     use crate::setup::setup;
-    use alloy_primitives::Bytes;
+    use alloy_primitives::{Bytes, U256};
     use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
     use api::runtime_types::tangle_primitives::services::field::Field;
     use api::runtime_types::tangle_primitives::services::BlueprintServiceManager;
@@ -91,6 +91,7 @@ mod e2e {
 
             for (index, keypair) in keypairs.iter().enumerate() {
                 let signer = handles[index].ecdsa_id().alloy_key().unwrap();
+                println!("Registering public key for operator {}", signer.address());
                 let wallet = alloy_network::EthereumWallet::from(signer);
                 let provider = alloy_provider::ProviderBuilder::new()
                     .with_recommended_fillers()
@@ -101,6 +102,9 @@ mod e2e {
                 // Register the STE public keys for each operator with the contract
                 let contract =
                     SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
+
+                let registered_operators = contract.getOperatorsOfService(service_id).call().await;
+                println!("Registered operators: {:?}", registered_operators);
 
                 // Submit the public key
                 contract
