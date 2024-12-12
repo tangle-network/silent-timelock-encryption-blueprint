@@ -60,10 +60,7 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
             requestInputs: "",
             permittedCallers: permittedCallers,
             ttl: 0,
-            paymentAsset: ServiceOperators.Asset({
-                kind: ServiceOperators.AssetKind.Custom,
-                data: bytes32(0)
-            }),
+            paymentAsset: ServiceOperators.Asset({kind: ServiceOperators.AssetKind.Custom, data: bytes32(0)}),
             amount: 0
         });
         vm.startPrank(0x0000000000000000000000000000000000000000);
