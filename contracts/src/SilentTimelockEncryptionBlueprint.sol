@@ -10,7 +10,14 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     // Mapping from service ID to a mapping of operator address to their STE public key
     mapping(uint64 => mapping(address => bytes)) private operatorSTEPublicKeys;
 
-    function operatorAddressFromPublicKey(bytes calldata publicKey) internal pure returns (address operator) {
+    function onRequest(ServiceOperators.RequestParams memory params) payable external override onlyFromMaster {
+                // Store the operators for this service
+        for (uint256 i = 0; i < params.operators.length; i++) {
+            serviceOperators[params.requestId].push(operatorAddressFromPublicKey(params.operators[i].ecdsaPublicKey));
+        }
+    }
+
+    function operatorAddressFromPublicKey(bytes memory publicKey) internal pure returns (address operator) {
         return address(uint160(uint256(keccak256(publicKey))));
     }
 
@@ -20,7 +27,6 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     }
 
     function getSTEPublicKey(uint64 serviceId, address operator) external view returns (bytes memory) {
-        require(isOperatorOfService(operator, serviceId), "Not an operator of this service");
         return operatorSTEPublicKeys[serviceId][operator];
     }
 

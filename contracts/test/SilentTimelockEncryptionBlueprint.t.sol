@@ -3,8 +3,8 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "../src/SilentTimelockEncryptionBlueprint.sol";
 import "dependencies/tnt-core-0.1.0/src/BlueprintServiceManagerBase.sol";
-import "contracts/lib/forge-std/src/Test.sol";
-import "contracts/lib/forge-std/src/console.sol";
+import "dependencies/forge-std-1.9.4/src/Test.sol";
+import "dependencies/forge-std-1.9.4/src/console.sol";
 
 contract SilentTimelockEncryptionBlueprintTest is Test {
     SilentTimelockEncryptionBlueprint public STEBlueprint;
@@ -76,11 +76,6 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
         vm.prank(address(0xdead));
         vm.expectRevert("Not an operator of this service");
         STEBlueprint.registerSTEPublicKey(requestId, stePublicKey);
-    }
-
-    function testGetSTEPublicKeyUnauthorized() public {
-        vm.expectRevert("Not an operator of this service");
-        STEBlueprint.getSTEPublicKey(requestId, address(0xdead));
     }
 
     function testMultipleOperators() public {

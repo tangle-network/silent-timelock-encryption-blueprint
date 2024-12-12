@@ -30,12 +30,11 @@ mod e2e {
     use ark_std::UniformRand;
     use blueprint_test_utils::test_ext::*;
     use blueprint_test_utils::*;
-    use cargo_tangle::deploy::Opts;
     use gadget_sdk::subxt_core::tx::signer::Signer;
     use gadget_sdk::tangle_subxt::parity_scale_codec::Encode;
     use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
     use gadget_sdk::{error, info};
-    use silent_threshold_encryption::kzg::{PowersOfTau, KZG10};
+    use silent_threshold_encryption::kzg::KZG10;
     use tangle::NodeConfig;
 
     pub fn setup_testing_log() {
