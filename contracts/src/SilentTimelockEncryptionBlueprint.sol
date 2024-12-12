@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSE
 pragma solidity >=0.8.13;
 
-import "contracts/lib/tnt-core/src/BlueprintServiceManagerBase.sol";
+import "dependencies/tnt-core-0.1.0/src/BlueprintServiceManagerBase.sol";
 
 contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     // Mapping from service ID to a list of operator addresses

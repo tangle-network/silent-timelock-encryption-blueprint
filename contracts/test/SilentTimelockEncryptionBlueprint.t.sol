@@ -2,6 +2,7 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "../src/SilentTimelockEncryptionBlueprint.sol";
+import "dependencies/tnt-core-0.1.0/src/BlueprintServiceManagerBase.sol";
 import "contracts/lib/forge-std/src/Test.sol";
 import "contracts/lib/forge-std/src/console.sol";
 
@@ -43,7 +44,7 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
         ServiceOperators.OperatorPreferences memory op2 =
             ServiceOperators.OperatorPreferences({ecdsaPublicKey: operator2PublicKey, priceTargets: priceTargets2});
 
-        vm.startPrank(rootChain);
+        vm.startPrank(0x0000000000000000000000000000000000000000);
         STEBlueprint.onRegister(op1, "");
         STEBlueprint.onRegister(op2, "");
 
@@ -52,7 +53,21 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
         operators[1] = op2;
         address[] memory permittedCallers = new address[](0);
 
-        STEBlueprint.onRequest(requestId, rootChain, operators, "", permittedCallers, 0);
+        ServiceOperators.RequestParams memory params = ServiceOperators.RequestParams({
+            requestId: requestId,
+            requester: rootChain,
+            operators: operators,
+            requestInputs: "",
+            permittedCallers: permittedCallers,
+            ttl: 0,
+            paymentAsset: ServiceOperators.Asset({
+                kind: ServiceOperators.AssetKind.Custom,
+                data: bytes32(0)
+            }),
+            amount: 0
+        });
+        vm.startPrank(0x0000000000000000000000000000000000000000);
+        STEBlueprint.onRequest(params);
         vm.stopPrank();
     }
 
