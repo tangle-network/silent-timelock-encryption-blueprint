@@ -19,7 +19,8 @@ mod e2e {
     use super::*;
     use crate::decrypt::DecryptState;
     use crate::setup::setup;
-    use alloy_primitives::{Bytes, U256};
+    use alloy_primitives::Bytes;
+    use alloy_signer_local::PrivateKeySigner;
     use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
     use api::runtime_types::tangle_primitives::services::field::Field;
     use api::runtime_types::tangle_primitives::services::BlueprintServiceManager;
@@ -34,7 +35,10 @@ mod e2e {
     use gadget_sdk::tangle_subxt::parity_scale_codec::Encode;
     use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
     use gadget_sdk::{error, info};
+    use k256::ecdsa::{SigningKey, VerifyingKey};
+    use k256::CompressedPoint;
     use silent_threshold_encryption::kzg::KZG10;
+    use sp_core::Pair;
     use tangle::NodeConfig;
 
     pub fn setup_testing_log() {
@@ -90,9 +94,14 @@ mod e2e {
             let service_id = service.id;
 
             for (index, keypair) in keypairs.iter().enumerate() {
-                let signer = handles[index].ecdsa_id().alloy_key().unwrap();
-                println!("Registering public key for operator {}", signer.address());
-                let wallet = alloy_network::EthereumWallet::from(signer);
+                let mut private_key = handles[index].ecdsa_id().signer().seed();
+                let private_key: PrivateKeySigner = PrivateKeySigner::from_slice(&private_key)
+                    .expect("Failed to create private key signer");
+                let wallet = alloy_network::EthereumWallet::from(private_key);
+                println!(
+                    "Registering public key for operator {:?}",
+                    wallet.default_signer().address()
+                );
                 let provider = alloy_provider::ProviderBuilder::new()
                     .with_recommended_fillers()
                     .wallet(wallet)
