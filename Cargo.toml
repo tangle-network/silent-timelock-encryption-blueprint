@@ -53,7 +53,7 @@ default-features = false
 features = ["getrandom"]
 
 [build-dependencies]
-blueprint-metadata = "0.1.7"
+blueprint-metadata = "0.2.1"
 
 [features]
 default = ["std"]
