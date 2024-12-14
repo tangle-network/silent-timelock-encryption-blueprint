@@ -24,7 +24,7 @@ use crate::SilentTimelockEncryptionBlueprint;
 /// Decrypts a ciphertext using the threshold decryption protocol
 #[sdk::job(
     id = 0,
-    params(ciphertext, threshold),
+    params(threshold, ciphertext),
     result(_),
     event_listener(
         listener = TangleEventListener::<ServiceContext, JobCalled>,
@@ -33,8 +33,8 @@ use crate::SilentTimelockEncryptionBlueprint;
     ),
 )]
 pub async fn decrypt_ciphertext(
-    ciphertext: Vec<u8>,
     threshold: u16,
+    ciphertext: Vec<u8>,
     context: ServiceContext,
 ) -> Result<Vec<u8>, DecryptError> {
     let blueprint_id = context

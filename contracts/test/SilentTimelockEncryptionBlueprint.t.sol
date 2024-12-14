@@ -20,8 +20,10 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
 
     function setUp() public {
         rootChain = address(0x1);
-        operator1PublicKey = hex"0414463bfb5433001c187e7a28c480d3945db9279ba4ef96f29c5e0e565f56b254d5c8d1d4c3a8d1b7c0b7d2f3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2e2";
-        operator2PublicKey = hex"047f316ac29a1c2a5e6e5c8cff51b225af088b5066e569c73ba6eba896a07c560f54a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0f0";
+        operator1PublicKey =
+            hex"0414463bfb5433001c187e7a28c480d3945db9279ba4ef96f29c5e0e565f56b254d5c8d1d4c3a8d1b7c0b7d2f3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2e2";
+        operator2PublicKey =
+            hex"047f316ac29a1c2a5e6e5c8cff51b225af088b5066e569c73ba6eba896a07c560f54a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0f0";
         operator1 = operatorAddress(operator1PublicKey);
         operator2 = operatorAddress(operator2PublicKey);
 

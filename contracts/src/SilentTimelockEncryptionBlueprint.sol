@@ -34,8 +34,10 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     function getAllSTEPublicKeys(uint64 serviceId) external view returns (bytes[] memory) {
         address[] memory operators = serviceOperators[serviceId];
         bytes[] memory publicKeys = new bytes[](operators.length);
+        bytes memory empty = bytes("");
         for (uint256 i = 0; i < operators.length; i++) {
-            publicKeys[i] = operatorSTEPublicKeys[serviceId][operators[i]];
+            bytes memory key = operatorSTEPublicKeys[serviceId][operators[i]];
+            publicKeys[i] = key.length == 0 ? empty : key;
         }
         return publicKeys;
     }

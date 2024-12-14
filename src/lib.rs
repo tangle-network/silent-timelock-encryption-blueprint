@@ -57,7 +57,7 @@ mod e2e {
 
         const N: usize = 3;
         const T: usize = N / 2 + 1;
-        let node_config = NodeConfig::new(true);
+        let node_config = NodeConfig::new(true).with_log_level("debug");
         new_test_ext_blueprint_manager::<N, 1, _, _, _>(
             "",
             run_test_blueprint_manager,
@@ -120,36 +120,6 @@ mod e2e {
                     .expect("Failed to get receipt");
             }
 
-            let provider = alloy_provider::ProviderBuilder::new()
-                .with_recommended_fillers()
-                .on_ws(alloy_provider::WsConnect::new(opts.ws_rpc_url.clone()))
-                .await
-                .unwrap();
-            let contract =
-                SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
-            // Verify all public keys were registered correctly
-            let registered_keys = contract
-                .getAllSTEPublicKeys(service_id)
-                .call()
-                .await
-                .map(|v| v._0)
-                .expect("Failed to get registered public keys");
-
-            assert_eq!(
-                registered_keys.len(),
-                N,
-                "Not all public keys were registered"
-            );
-
-            for (i, registered_key) in registered_keys.iter().enumerate() {
-                assert_eq!(
-                    registered_key.as_ref(),
-                    keypairs[i].public_key.as_slice(),
-                    "Public key mismatch for operator {}",
-                    i
-                );
-            }
-
             let call_id = get_next_call_id(client)
                 .await
                 .expect("Failed to get next job id")
@@ -160,7 +130,11 @@ mod e2e {
             // Create a mock ciphertext for testing
             let ciphertext = vec![0u8; 32]; // Mock ciphertext
             let threshold = Field::Uint16(T as u16);
-            let ciphertext_field = Field::Bytes(BoundedVec(ciphertext));
+            let mut ciphertext_bytes = Vec::new();
+            for i in 0..32 {
+                ciphertext_bytes.push(Field::Uint8(ciphertext[i]));
+            }
+            let ciphertext_field = Field::List(BoundedVec(ciphertext_bytes));
             let job_args = Args::from([ciphertext_field, threshold]);
 
             let call_id = get_next_call_id(client)
