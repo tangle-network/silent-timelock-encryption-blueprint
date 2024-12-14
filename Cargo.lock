@@ -2059,12 +2059,10 @@ dependencies = [
 [[package]]
 name = "blueprint-build-utils"
 version = "0.1.0"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
 
 [[package]]
 name = "blueprint-manager"
-version = "0.2.1"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -2091,8 +2089,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-metadata"
-version = "0.2.0"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.2.1"
 dependencies = [
  "cargo_metadata",
  "fs2",
@@ -2105,8 +2102,7 @@ dependencies = [
 
 [[package]]
 name = "blueprint-test-utils"
-version = "0.2.1"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.3.0"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -2344,7 +2340,7 @@ dependencies = [
  "remove_dir_all",
  "rhai",
  "sanitize-filename",
- "semver 1.0.23",
+ "semver 1.0.24",
  "serde",
  "tempfile",
  "thiserror 1.0.69",
@@ -2364,8 +2360,7 @@ dependencies = [
 
 [[package]]
 name = "cargo-tangle"
-version = "0.3.2"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.3.3"
 dependencies = [
  "alloy-json-abi",
  "alloy-network",
@@ -2400,7 +2395,7 @@ checksum = "2d886547e41f740c616ae73108f6eb70afe6d940c7bc697cb30f13daec073037"
 dependencies = [
  "camino",
  "cargo-platform",
- "semver 1.0.23",
+ "semver 1.0.24",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4311,7 +4306,7 @@ dependencies = [
  "chrono",
  "ethers-core",
  "reqwest 0.11.27",
- "semver 1.0.23",
+ "semver 1.0.24",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4420,7 +4415,7 @@ dependencies = [
  "path-slash",
  "rayon",
  "regex",
- "semver 1.0.23",
+ "semver 1.0.24",
  "serde",
  "serde_json",
  "solang-parser",
@@ -4920,8 +4915,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro"
-version = "0.5.0"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.5.1"
 dependencies = [
  "gadget-blueprint-proc-macro-core",
  "indexmap 2.7.0",
@@ -4935,8 +4929,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-proc-macro-core"
-version = "0.3.0"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.3.1"
 dependencies = [
  "cid",
  "ethereum-types",
@@ -4945,8 +4938,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-blueprint-serde"
-version = "0.3.0"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.3.1"
 dependencies = [
  "paste",
  "serde",
@@ -4956,8 +4948,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-context-derive"
-version = "0.3.0"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.3.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4967,7 +4958,6 @@ dependencies = [
 [[package]]
 name = "gadget-io"
 version = "0.0.5"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
 dependencies = [
  "cfg-if",
  "clap 4.5.23",
@@ -4988,8 +4978,7 @@ dependencies = [
 
 [[package]]
 name = "gadget-sdk"
-version = "0.6.1"
-source = "git+https://github.com/tangle-network/gadget#b34c6f0e3844d43ac15f4fe4f8a1f3fd124958c0"
+version = "0.6.2"
 dependencies = [
  "alloy-contract",
  "alloy-json-abi",
@@ -9236,9 +9225,9 @@ dependencies = [
 
 [[package]]
 name = "quanta"
-version = "0.12.3"
+version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e5167a477619228a0b284fac2674e3c388cba90631d7b7de620e6f1fcd08da5"
+checksum = "773ce68d0bb9bc7ef20be3536ffe94e223e1f365bd374108b2659fac0c65cfe6"
 dependencies = [
  "crossbeam-utils",
  "libc",
@@ -9935,7 +9924,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
 dependencies = [
- "semver 1.0.23",
+ "semver 1.0.24",
 ]
 
 [[package]]
@@ -10533,9 +10522,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.23"
+version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
+checksum = "3cb6eb87a131f756572d7fb904f6e7b68633f09cca868c5df1c4b8d1a694bbba"
 dependencies = [
  "serde",
 ]
@@ -12005,7 +11994,7 @@ dependencies = [
  "hex",
  "once_cell",
  "reqwest 0.11.27",
- "semver 1.0.23",
+ "semver 1.0.24",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -12145,8 +12134,6 @@ dependencies = [
 [[package]]
 name = "tangle-subxt"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16af9ac9fa28eadfded616693fcb19a61055bcf5c42fda07a03b572996bb10e8"
 dependencies = [
  "parity-scale-codec",
  "scale-info",

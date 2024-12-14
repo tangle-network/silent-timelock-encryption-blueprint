@@ -10,10 +10,11 @@ contract SilentTimelockEncryptionBlueprint is BlueprintServiceManagerBase {
     // Mapping from service ID to a mapping of operator address to their STE public key
     mapping(uint64 => mapping(address => bytes)) public operatorSTEPublicKeys;
 
-    function onRequest(ServiceOperators.RequestParams memory params) external payable override onlyFromMaster {
+    function onRequest(ServiceOperators.RequestParams calldata params) external payable override onlyFromMaster {
         // Store the operators for this service
         for (uint256 i = 0; i < params.operators.length; i++) {
-            serviceOperators[params.requestId].push(operatorAddressFromPublicKey(params.operators[i].ecdsaPublicKey));
+            bytes memory pubkey = params.operators[i].ecdsaPublicKey[1:];
+            serviceOperators[params.requestId].push(operatorAddressFromPublicKey(pubkey));
         }
     }
 

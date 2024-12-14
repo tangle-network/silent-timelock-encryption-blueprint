@@ -10,6 +10,7 @@ use gadget_sdk::{
     store::LocalDatabase,
     subxt_core::ext::sp_core::ecdsa,
 };
+use k256::EncodedPoint;
 use sdk::tangle_subxt::tangle_testnet_runtime::api;
 use silent_threshold_encryption::kzg::PowersOfTau;
 use sp_core::ecdsa::Public;
@@ -154,7 +155,12 @@ impl ServiceContext {
             })?;
 
             if let Some(pref) = maybe_pref {
-                map.insert(operator, ecdsa::Public(pref.key));
+                let pt = EncodedPoint::from_bytes(&pref.key).unwrap();
+                let compressed_bytes = pt.compress().to_bytes();
+                map.insert(
+                    operator,
+                    ecdsa::Public(compressed_bytes.to_vec().try_into().unwrap()),
+                );
             } else {
                 return Err(eyre::eyre!("Missing ECDSA key for operator {operator}"));
             }

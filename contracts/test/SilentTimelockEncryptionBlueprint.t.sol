@@ -5,8 +5,11 @@ import "../src/SilentTimelockEncryptionBlueprint.sol";
 import "dependencies/tnt-core-0.1.0/src/BlueprintServiceManagerBase.sol";
 import "dependencies/forge-std-1.9.4/src/Test.sol";
 import "dependencies/forge-std-1.9.4/src/console.sol";
+import "dependencies/@openzeppelin-contracts-5.2.0-rc.0/utils/Bytes.sol";
 
 contract SilentTimelockEncryptionBlueprintTest is Test {
+    using Bytes for bytes;
+
     SilentTimelockEncryptionBlueprint public STEBlueprint;
     address public rootChain;
     bytes public operator1PublicKey;
@@ -17,8 +20,8 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
 
     function setUp() public {
         rootChain = address(0x1);
-        operator1PublicKey = hex"14463bfb5433001c187e7a28c480d3945db9279ba4ef96f29c5e0e565f56b254d5";
-        operator2PublicKey = hex"7f316ac29a1c2a5e6e5c8cff51b225af088b5066e569c73ba6eba896a07c560f54";
+        operator1PublicKey = hex"0414463bfb5433001c187e7a28c480d3945db9279ba4ef96f29c5e0e565f56b254d5c8d1d4c3a8d1b7c0b7d2f3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2e2";
+        operator2PublicKey = hex"047f316ac29a1c2a5e6e5c8cff51b225af088b5066e569c73ba6eba896a07c560f54a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0f0";
         operator1 = operatorAddress(operator1PublicKey);
         operator2 = operatorAddress(operator2PublicKey);
 
@@ -30,7 +33,8 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
     }
 
     function operatorAddress(bytes memory publicKey) internal pure returns (address) {
-        return address(uint160(uint256(keccak256(publicKey))));
+        bytes memory pubkey = Bytes.slice(publicKey, 1);
+        return address(uint160(uint256(keccak256(pubkey))));
     }
 
     function setupOperators() internal {
