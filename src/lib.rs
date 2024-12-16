@@ -135,7 +135,7 @@ mod e2e {
                 ciphertext_bytes.push(Field::Uint8(ciphertext[i]));
             }
             let ciphertext_field = Field::List(BoundedVec(ciphertext_bytes));
-            let job_args = Args::from([ciphertext_field, threshold]);
+            let job_args = Args::from([threshold, ciphertext_field]);
 
             let call_id = get_next_call_id(client)
                 .await

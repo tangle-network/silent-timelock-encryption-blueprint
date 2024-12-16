@@ -65,7 +65,7 @@ async fn ensure_keypair_exists(
         let new_keypair =
             setup::<Bn254>(operators.len() as u32, my_operator_position as u32, &params)
                 .expect("Failed to generate keypair");
-        tracing::info!("Generated keypair for service");
+        println!("Generated keypair for service");
         // Submit the STE public key to the blueprint contract
         let blueprint_id = context.blueprint_id()?;
         let blueprint_storage_key = api::storage().services().blueprints(blueprint_id);
@@ -116,7 +116,7 @@ async fn submit_ste_public_key(
         .get_receipt()
         .await?;
 
-    tracing::info!(
+    println!(
         "Successfully submitted STE public key for service ID {}",
         service_id
     );
