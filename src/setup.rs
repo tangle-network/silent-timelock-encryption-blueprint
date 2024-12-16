@@ -1,5 +1,6 @@
 use ark_ec::pairing::Pairing;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use silent_threshold_encryption::{
     kzg::PowersOfTau,
@@ -21,11 +22,11 @@ pub struct SilentThresholdEncryptionKeypair {
 pub fn setup<E: Pairing>(
     n: u32,
     party_id: u32,
-    params: PowersOfTau<E>,
+    params: &PowersOfTau<E>,
 ) -> Result<SilentThresholdEncryptionKeypair, gadget_sdk::Error> {
-    let mut rng = ark_std::test_rng();
+    let mut rng = thread_rng();
     let sk: SecretKey<E> = SecretKey::<E>::new(&mut rng);
-    let pk: PublicKey<E> = sk.get_pk(party_id as usize, &params, n as usize);
+    let pk: PublicKey<E> = sk.get_pk(party_id as usize, params, n as usize);
 
     let secret_key = to_bytes(sk);
     let public_key = to_bytes(pk);

@@ -1,4 +1,5 @@
 use ark_ec::pairing::Pairing;
+use ark_std::Zero;
 use round_based::SinkExt;
 use round_based::{
     rounds_router::{simple_store::RoundInput, RoundsRouter},
@@ -13,7 +14,6 @@ use silent_threshold_encryption::{
     setup::{AggregateKey, SecretKey},
 };
 use std::collections::BTreeMap;
-use std::num::NonZeroUsize;
 
 use crate::setup::{from_bytes, to_bytes};
 
@@ -39,19 +39,10 @@ pub struct PartialDecryptionMessage {
     pub partial_decryption: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct DecryptState {
     pub partial_decryptions: BTreeMap<usize, Vec<u8>>,
     pub decryption_result: Option<Vec<u8>>,
-}
-
-impl Default for DecryptState {
-    fn default() -> Self {
-        Self {
-            partial_decryptions: BTreeMap::new(),
-            decryption_result: None,
-        }
-    }
 }
 
 #[derive(ProtocolMessage, Clone, Serialize, Deserialize)]
@@ -65,14 +56,15 @@ pub struct Msg1 {
     data: Vec<u8>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn threshold_decrypt_protocol<M, E: Pairing>(
     party: M,
     i: PartyIndex,
     t: u16,
     n: u16,
-    secret_key: SecretKey<E>,
-    ciphertext: Ciphertext<E>,
-    agg_key: AggregateKey<E>,
+    secret_key: &SecretKey<E>,
+    ciphertext: &Ciphertext<E>,
+    agg_key: &AggregateKey<E>,
     params: &PowersOfTau<E>,
 ) -> Result<DecryptState, DecryptError>
 where
@@ -82,25 +74,18 @@ where
     let (incomings, mut outgoings) = delivery.split();
     let mut state = DecryptState::default();
 
-    // Convert parameters
-    let i = NonZeroUsize::new(i as usize).expect("I > 0");
-    let n = NonZeroUsize::new(n as usize).expect("N > 0");
-    let t = NonZeroUsize::new(t as usize).expect("T > 0");
-
-    let (i, t, n) = (i.get() as u16, t.get() as u16, n.get() as u16);
-
     // Setup round router
     let mut rounds = RoundsRouter::builder();
     let round1 = rounds.add_round(RoundInput::<Msg1>::broadcast(i, n));
     let mut rounds = rounds.listen(incomings);
 
     // Generate partial decryption
-    let p_decryption = secret_key.partial_decryption(&ciphertext);
+    let p_decryption = secret_key.partial_decryption(ciphertext);
 
     // Broadcast partial decryption
     let broadcast_msg = Msg::Round1Broadcast(Msg1 {
         source: i,
-        data: to_bytes(p_decryption.clone()),
+        data: to_bytes(p_decryption),
     });
 
     send_message::<M, E>(broadcast_msg, &mut outgoings).await?;
@@ -108,7 +93,7 @@ where
     // Insert own partial decryption
     state
         .partial_decryptions
-        .insert(i as usize, to_bytes(p_decryption));
+        .insert(i as usize, to_bytes::<E::G2>(p_decryption));
 
     // Collect other partial decryptions
     let round1_broadcasts = rounds
@@ -122,25 +107,22 @@ where
             .map(|r| (r.2.source as usize, r.2.data)),
     );
 
-    // Create selector vector
-    let mut selector: Vec<bool> = vec![false; n as usize];
-    for i in state.partial_decryptions.keys() {
-        selector[*i] = true;
-    }
-
     // Compute final decryption if we have enough partial decryptions
     if state.partial_decryptions.len() >= (t + 1) as usize {
-        let dec_key = agg_dec(
-            &state
-                .partial_decryptions
-                .values()
-                .map(|bytes| from_bytes::<E::G2>(bytes))
-                .collect::<Vec<_>>(),
-            &ciphertext,
-            &selector,
-            &agg_key,
-            &params,
-        );
+        // Create selector vector
+        let mut selector: Vec<bool> = vec![false; n as usize];
+        let mut partial_decryptions: Vec<E::G2> = vec![E::G2::zero(); n as usize];
+        for j in state.partial_decryptions.keys() {
+            selector[*j] = true;
+            partial_decryptions[*j] =
+                from_bytes::<E::G2>(state.partial_decryptions.get(j).unwrap());
+        }
+
+        for j in t + 1..n {
+            selector[j as usize] = false;
+        }
+
+        let dec_key = agg_dec(&partial_decryptions, ciphertext, &selector, agg_key, params);
         state.decryption_result = Some(to_bytes(dec_key));
     }
 

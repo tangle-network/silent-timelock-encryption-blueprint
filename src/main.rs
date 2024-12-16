@@ -1,15 +1,16 @@
+use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes};
 use ark_bn254::Bn254;
 use ark_ec::pairing::Pairing;
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
 use color_eyre::Result;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{BlueprintManager, ServiceBlueprint};
+use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{BlueprintServiceManager, ServiceBlueprint};
 use gadget_sdk as sdk;
 use gadget_sdk::config::StdGadgetConfiguration;
 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-use gadget_sdk::utils::evm::get_provider_http;
-use sdk::ctx::ServicesContext;
+use gadget_sdk::utils::evm::{get_provider_http, get_wallet_provider_http};
+use sdk::contexts::ServicesContext;
 use sdk::runners::tangle::TangleConfig;
 use sdk::runners::BlueprintRunner;
 use sdk::subxt_core::tx::signer::Signer;
@@ -62,9 +63,9 @@ async fn ensure_keypair_exists(
             .expect("operator should be present for the service");
 
         let new_keypair =
-            setup::<Bn254>(operators.len() as u32, my_operator_position as u32, params)
+            setup::<Bn254>(operators.len() as u32, my_operator_position as u32, &params)
                 .expect("Failed to generate keypair");
-        tracing::info!("Generated keypair for service");
+        println!("Generated keypair for service");
         // Submit the STE public key to the blueprint contract
         let blueprint_id = context.blueprint_id()?;
         let blueprint_storage_key = api::storage().services().blueprints(blueprint_id);
@@ -83,7 +84,7 @@ async fn ensure_keypair_exists(
             })?;
 
         let blueprint_contract_address = match blueprint.manager {
-            BlueprintManager::Evm(address) => Address::from(address.to_fixed_bytes()),
+            BlueprintServiceManager::Evm(address) => Address::from(address.to_fixed_bytes()),
         };
         submit_ste_public_key(env, service_id, &new_keypair, blueprint_contract_address).await?;
 
@@ -99,7 +100,9 @@ async fn submit_ste_public_key(
     keypair: &SilentThresholdEncryptionKeypair,
     blueprint_contract_address: Address,
 ) -> Result<()> {
-    let provider = get_provider_http(&env.http_rpc_endpoint);
+    let signer = env.first_ecdsa_signer()?.alloy_key()?;
+    let wallet = EthereumWallet::from(signer);
+    let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
     let contract = SilentTimelockEncryptionBlueprint::new(blueprint_contract_address, provider);
 
     // Submit the public key
@@ -113,7 +116,7 @@ async fn submit_ste_public_key(
         .get_receipt()
         .await?;
 
-    tracing::info!(
+    println!(
         "Successfully submitted STE public key for service ID {}",
         service_id
     );
