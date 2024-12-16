@@ -37,47 +37,92 @@ pub async fn decrypt_ciphertext(
     ciphertext: Vec<u8>,
     context: ServiceContext,
 ) -> Result<Vec<u8>, DecryptError> {
-    let blueprint_id = context
-        .blueprint_id()
-        .map_err(|e| DecryptError::ContextError(e.to_string()))?;
+    println!("Starting decrypt_ciphertext job");
+    let blueprint_id = match context.blueprint_id() {
+        Ok(id) => {
+            println!("Got blueprint ID: {}", id);
+            id
+        }
+        Err(e) => {
+            gadget_sdk::error!("Failed to get blueprint ID: {}", e);
+            return Err(DecryptError::ContextError(e.to_string()));
+        }
+    };
+
     let blueprint_address_key = api::services::storage::StorageApi.blueprints(blueprint_id);
-    let blueprint_manager_address = context
+    println!("Fetching blueprint manager address from storage");
+    let blueprint_manager_address = match context
         .tangle_client()
         .await
-        .unwrap()
+        .map_err(|e| {
+            gadget_sdk::error!("Failed to get tangle client: {}", e);
+            DecryptError::ContextError(e.to_string())
+        })?
         .storage()
         .at_latest()
         .await
-        .unwrap()
+        .map_err(|e| {
+            gadget_sdk::error!("Failed to get latest storage: {}", e);
+            DecryptError::ContextError(e.to_string())
+        })?
         .fetch(&blueprint_address_key)
         .await
-        .unwrap()
-        .map(|v| match v.1.manager {
-            BlueprintServiceManager::Evm(address) => Address::from(address.0),
-        })
-        .unwrap();
-    let call_id = context
-        .current_call_id()
-        .await
-        .map_err(|e| DecryptError::ContextError(e.to_string()))?;
+        .map_err(|e| {
+            gadget_sdk::error!("Failed to fetch from storage: {}", e);
+            DecryptError::ContextError(e.to_string())
+        })? {
+        Some((_, v)) => {
+            let addr = match v.manager {
+                BlueprintServiceManager::Evm(address) => Address::from(address.0),
+            };
+            println!("Got blueprint manager address: {:?}", addr);
+            addr
+        }
+        None => {
+            gadget_sdk::error!("Blueprint manager address not found in storage");
+            return Err(DecryptError::ContextError(
+                "Blueprint manager address not found".to_string(),
+            ));
+        }
+    };
 
-    // Deserialize the ciphertext
+    let call_id = match context.current_call_id().await {
+        Ok(id) => {
+            println!("Got call ID: {}", id);
+            id
+        }
+        Err(e) => {
+            gadget_sdk::error!("Failed to get call ID: {}", e);
+            return Err(DecryptError::ContextError(e.to_string()));
+        }
+    };
+
+    println!("Deserializing ciphertext");
     let ciphertext: Ciphertext<Bn254> = from_bytes(&ciphertext);
 
-    // Get the keypair from storage
-    let keypair = context
-        .secret_key_store
-        .get(KEYPAIR_KEY)
-        .ok_or(DecryptError::ContextError("Keypair not found".to_string()))?;
+    println!("Getting keypair from storage");
+    let keypair = match context.secret_key_store.get(KEYPAIR_KEY) {
+        Some(k) => k,
+        None => {
+            gadget_sdk::error!("Keypair not found in storage");
+            return Err(DecryptError::ContextError("Keypair not found".to_string()));
+        }
+    };
 
-    // Deserialize the secret key
+    println!("Deserializing secret key");
     let secret_key: SecretKey<Bn254> = from_bytes(&keypair.secret_key);
 
-    // Setup party information
-    let (i, operators) = context
-        .get_party_index_and_operators()
-        .await
-        .map_err(|e| DecryptError::ContextError(e.to_string()))?;
+    println!("Getting party information");
+    let (i, operators) = match context.get_party_index_and_operators().await {
+        Ok((idx, ops)) => {
+            println!("Got party index {} and {} operators", idx, ops.len());
+            (idx, ops)
+        }
+        Err(e) => {
+            gadget_sdk::error!("Failed to get party info: {}", e);
+            return Err(DecryptError::ContextError(e.to_string()));
+        }
+    };
 
     let parties: BTreeMap<u16, Public> = operators
         .into_iter()
@@ -86,6 +131,7 @@ pub async fn decrypt_ciphertext(
         .collect();
 
     let num_parties = parties.values().len();
+    println!("Setting up network with {} parties", num_parties);
 
     let (meta_hash, deterministic_hash) =
         compute_deterministic_hashes(num_parties as u16, blueprint_id, call_id);
@@ -99,22 +145,41 @@ pub async fn decrypt_ciphertext(
     let party = round_based::party::MpcParty::connected(network);
     let ws_rpc_endpoint = &context.config.ws_rpc_endpoint;
     let service_id = context.config.service_id().unwrap();
-    let provider = alloy_provider::ProviderBuilder::new()
+
+    println!("Setting up provider and contract");
+    let provider = match alloy_provider::ProviderBuilder::new()
         .with_recommended_fillers()
         .on_ws(alloy_provider::WsConnect::new(ws_rpc_endpoint))
         .await
-        .unwrap();
+    {
+        Ok(p) => p,
+        Err(e) => {
+            gadget_sdk::error!("Failed to create provider: {}", e);
+            return Err(DecryptError::ContextError(format!(
+                "Failed to create provider: {}",
+                e
+            )));
+        }
+    };
+
     let contract = SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
-    // Verify all public keys were registered correctly
-    let registered_keys = contract
-        .getAllSTEPublicKeys(service_id)
-        .call()
-        .await
-        .map(|v| v._0)
-        .expect("Failed to get registered public keys");
+
+    println!("Getting registered STE public keys");
+    let registered_keys = match contract.getAllSTEPublicKeys(service_id).call().await {
+        Ok(v) => v._0,
+        Err(e) => {
+            gadget_sdk::error!("Failed to get registered public keys: {}", e);
+            return Err(DecryptError::ContextError(format!(
+                "Failed to get registered public keys: {}",
+                e
+            )));
+        }
+    };
+
     let pk = vec![];
     let agg_key = AggregateKey::<Bn254>::new(pk, &context.params);
-    // Run the decryption protocol
+
+    println!("Running decryption protocol");
     let decryption = threshold_decrypt_protocol(
         party,
         i as u16,
@@ -127,10 +192,16 @@ pub async fn decrypt_ciphertext(
     )
     .await?;
 
-    // Serialize the decryption
-    let decryption = serde_json::to_vec(&decryption)
-        .map_err(|e| DecryptError::SerializationError(e.to_string()))?;
+    println!("Serializing decryption result");
+    let decryption = match serde_json::to_vec(&decryption) {
+        Ok(d) => d,
+        Err(e) => {
+            gadget_sdk::error!("Failed to serialize decryption: {}", e);
+            return Err(DecryptError::SerializationError(e.to_string()));
+        }
+    };
 
+    println!("Decrypt ciphertext job completed successfully");
     Ok(decryption)
 }
 

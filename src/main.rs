@@ -1,3 +1,4 @@
+use alloy_network::EthereumWallet;
 use alloy_primitives::{Address, Bytes};
 use ark_bn254::Bn254;
 use ark_ec::pairing::Pairing;
@@ -8,7 +9,7 @@ use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle
 use gadget_sdk as sdk;
 use gadget_sdk::config::StdGadgetConfiguration;
 use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-use gadget_sdk::utils::evm::get_provider_http;
+use gadget_sdk::utils::evm::{get_provider_http, get_wallet_provider_http};
 use sdk::contexts::ServicesContext;
 use sdk::runners::tangle::TangleConfig;
 use sdk::runners::BlueprintRunner;
@@ -99,7 +100,9 @@ async fn submit_ste_public_key(
     keypair: &SilentThresholdEncryptionKeypair,
     blueprint_contract_address: Address,
 ) -> Result<()> {
-    let provider = get_provider_http(&env.http_rpc_endpoint);
+    let signer = env.first_ecdsa_signer()?.alloy_key()?;
+    let wallet = EthereumWallet::from(signer);
+    let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
     let contract = SilentTimelockEncryptionBlueprint::new(blueprint_contract_address, provider);
 
     // Submit the public key

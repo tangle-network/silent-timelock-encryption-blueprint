@@ -57,7 +57,7 @@ mod e2e {
 
         const N: usize = 3;
         const T: usize = N / 2 + 1;
-        let node_config = NodeConfig::new(true).with_log_level("debug");
+        let node_config = NodeConfig::new(true);
         new_test_ext_blueprint_manager::<N, 1, _, _, _>(
             "",
             run_test_blueprint_manager,
