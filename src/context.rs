@@ -5,11 +5,12 @@ use gadget_sdk::subxt_core::tx::signer::Signer;
 use gadget_sdk::subxt_core::utils::AccountId32;
 use gadget_sdk::{
     self as sdk,
-    ctx::{KeystoreContext, ServicesContext, TangleClientContext},
+    contexts::{KeystoreContext, ServicesContext, TangleClientContext},
     network::NetworkMultiplexer,
     store::LocalDatabase,
     subxt_core::ext::sp_core::ecdsa,
 };
+use k256::EncodedPoint;
 use sdk::tangle_subxt::tangle_testnet_runtime::api;
 use silent_threshold_encryption::kzg::PowersOfTau;
 use sp_core::ecdsa::Public;
@@ -23,6 +24,8 @@ use crate::setup::SilentThresholdEncryptionKeypair;
 pub struct ServiceContext {
     #[config]
     pub config: sdk::config::StdGadgetConfiguration,
+    #[call_id]
+    pub call_id: Option<u64>,
     pub network_backend: Arc<NetworkMultiplexer>,
     pub secret_key_store: Arc<LocalDatabase<SilentThresholdEncryptionKeypair>>,
     pub decrypt_state_store: Arc<LocalDatabase<DecryptState>>,
@@ -53,8 +56,9 @@ impl ServiceContext {
 
         Ok(Self {
             params,
-            secret_key_store: secret_key_store,
-            decrypt_state_store: decrypt_state_store,
+            call_id: None,
+            secret_key_store,
+            decrypt_state_store,
             identity,
             config,
             network_backend: Arc::new(NetworkMultiplexer::new(gossip_handle)),
@@ -151,7 +155,12 @@ impl ServiceContext {
             })?;
 
             if let Some(pref) = maybe_pref {
-                map.insert(operator, ecdsa::Public(pref.key));
+                let pt = EncodedPoint::from_bytes(&pref.key).unwrap();
+                let compressed_bytes = pt.compress().to_bytes();
+                map.insert(
+                    operator,
+                    ecdsa::Public(compressed_bytes.to_vec().try_into().unwrap()),
+                );
             } else {
                 return Err(eyre::eyre!("Missing ECDSA key for operator {operator}"));
             }
