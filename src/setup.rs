@@ -23,7 +23,7 @@ pub fn setup<E: Pairing>(
     n: u32,
     party_id: u32,
     params: &PowersOfTau<E>,
-) -> Result<SilentThresholdEncryptionKeypair, gadget_sdk::Error> {
+) -> Result<SilentThresholdEncryptionKeypair, blueprint_sdk::Error> {
     let mut rng = thread_rng();
     let sk: SecretKey<E> = SecretKey::<E>::new(&mut rng);
     let pk: PublicKey<E> = sk.get_pk(party_id as usize, params, n as usize);

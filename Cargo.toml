@@ -13,18 +13,33 @@ keywords = ["tangle", "blueprint", "avs"]
 rust-version = "1.81"
 
 [dependencies]
-tracing = "0.1"
-async-trait = "0.1"
-color-eyre = "0.6"
-round-based = { version = "0.3.2", features = ["runtime-tokio"] }
-sp-core = { version = "31.0.0", default-features = false, features = ["std"]}
-serde = { version = "1.0.215", features = ["derive"] }
+blueprint-sdk = { git = "https://github.com/tangle-network/gadget.git", branch = "drew/blueprint_summation_protocol_tests", features = [
+    "std",
+    "evm",
+    "macros",
+    "tangle",
+    "networking",
+    "local-store",
+    "round-based-compat",
+    "networking-sp-core-ecdsa"
+] }
+gadget-crypto = { git = "https://github.com/tangle-network/gadget.git", branch = "drew/blueprint_summation_protocol_tests", features = [
+    "hashing",
+] }
+
+color-eyre = { version = "0.6", features = ["tracing-error", "color-spantrace"] }
+hex = { version = "0.4.3", default-features = false }
+itertools = "0.13.0"
+round-based = { version = "0.4.1", features = ["runtime-tokio", "derive"] }
+serde = { version = "1.0.214", features = ["derive"] }
+serde_json = "1.0.133"
 structopt = "0.3.26"
-tokio = { version = "^1", default-features = false, features = ["full"] }
-tracing-subscriber = { version = "0.3", features = ["parking_lot", "env-filter"] }
-k256 = { version = "0.13.3", default-features = false }
+thiserror = "2.0.3"
+tracing = "0.1.41"
+
 
 # Silent Threshold Encryption dependencies
+k256 = { version = "0.13.3", default-features = false }
 silent-threshold-encryption = { git = "https://github.com/guruvamsi-policharla/silent-threshold-encryption.git" }
 ark-std = { version = "0.5.0" }
 ark-ec = { version = "0.5.0" }
@@ -33,46 +48,28 @@ ark-poly = { version = "0.5.0" }
 ark-bls12-381 = { version = "0.5.0" }
 ark-bn254 = { version = "0.5.0" }
 ark-serialize = { version = "0.5.0" }
-thiserror = "2.0.3"
-serde_json = "1.0.133"
 rand = "0.8.1"
 
-# Alloy deps
-alloy-primitives = "0.8.12"
-alloy-provider = { version = "0.5", default-features = false, features = ["reqwest", "ws"] }
-alloy-signer = { version = "0.5" }
-alloy-signer-local = { version = "0.5" }
-alloy-rpc-client = "0.5"
-alloy-network = { version = "0.5" }
-alloy-json-abi = "0.8.12"
-alloy-sol-types = "0.8.12"
-alloy-contract = { version = "0.5" }
-
-# gadget-sdk = { version = "0.6.1", default-features = false, features = ["getrandom"] }
-# gadget-sdk = { git = "https://github.com/tangle-network/gadget", default-features = false, features = ["getrandom"] }
-gadget-sdk = { path = "../gadget/sdk", default-features = false, features = ["getrandom"] }
-
 [dev-dependencies]
-tokio = { version = "^1", default-features = false, features = ["full", "rt-multi-thread"] }
 proptest = { version = "1.5.0", default-features = false, features = ["std", "bit-set", "fork", "timeout"] }
 test-strategy = { version = "0.4.0", default-features = false }
-round-based = { version = "0.3.2", default-features = false, features = ["derive", "dev"] }
-# cargo-tangle = "0.3.0"
-# cargo-tangle = { git = "https://github.com/tangle-network/gadget", default-features = false }
-cargo-tangle = { path = "../gadget/cli" }
-
-# blueprint-test-utils = { version = "0.2.1", default-features = false, features = ["std"] }
-# blueprint-test-utils = { git = "https://github.com/tangle-network/gadget", default-features = false }
-blueprint-test-utils = { path = "../gadget/blueprint-test-utils" }
+round-based = { version = "0.4.1", default-features = false, features = ["derive", "sim"] }
+blueprint-sdk = { git = "https://github.com/tangle-network/gadget.git", branch = "drew/blueprint_summation_protocol_tests", features = [
+    "std",
+    "evm",
+    "tangle",
+    "testing"
+] }
+gadget-crypto-tangle-pair-signer = { git = "https://github.com/tangle-network/gadget.git", branch = "drew/blueprint_summation_protocol_tests", features = ["evm"] }
+color-eyre = { version = "0.6", features = ["capture-spantrace", "track-caller"] }
+tokio = { version = "1.43.0", features = ["test-util"] }
 
 [build-dependencies]
-# blueprint-metadata = "0.2.0"
-# blueprint-metadata = { git = "https://github.com/tangle-network/gadget", default-features = false }
-blueprint-metadata = { path = "../gadget/blueprint-metadata" }
+blueprint-sdk = { git = "https://github.com/tangle-network/gadget.git", branch = "drew/blueprint_summation_protocol_tests", features = ["build"] }
 
 [features]
 default = ["std"]
-std = ["gadget-sdk/std"]
+std = ["blueprint-sdk/std"]
 
 [lib]
 path = "src/lib.rs"

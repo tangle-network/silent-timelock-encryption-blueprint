@@ -1,10 +1,8 @@
-use alloy_sol_types::sol;
-
 pub mod context;
 pub mod decrypt;
 pub mod jobs;
 pub mod setup;
-pub use jobs::decrypt_ciphertext;
+use blueprint_sdk::alloy::sol;
 use serde::{Deserialize, Serialize};
 
 sol!(
@@ -17,162 +15,184 @@ sol!(
 #[cfg(test)]
 mod e2e {
     use super::*;
+    use crate::context::ServiceContext;
     use crate::decrypt::DecryptState;
+    use crate::jobs::DecryptCiphertextEventHandler;
     use crate::setup::setup;
     use alloy_primitives::Bytes;
     use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
     use api::runtime_types::tangle_primitives::services::field::Field;
-    use api::runtime_types::tangle_primitives::services::BlueprintServiceManager;
     use api::services::calls::types::call::Args;
     use ark_bn254::Bn254;
     use ark_ec::pairing::Pairing;
     use ark_poly::univariate::DensePolynomial;
     use ark_std::UniformRand;
-    use blueprint_test_utils::test_ext::*;
-    use blueprint_test_utils::*;
-    use gadget_sdk::subxt_core::tx::signer::Signer;
-    use gadget_sdk::tangle_subxt::parity_scale_codec::Encode;
-    use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api;
-    use gadget_sdk::{error, info};
+    use blueprint_sdk::alloy::network::EthereumWallet;
+    use blueprint_sdk::alloy::providers::{ProviderBuilder, WsConnect};
+    use blueprint_sdk::contexts::tangle::TangleClient;
+    use blueprint_sdk::logging::{self, error, info};
+    use blueprint_sdk::tangle_subxt::parity_scale_codec::Encode;
+    use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
+    use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::BlueprintServiceManager;
+    use blueprint_sdk::tangle_subxt::subxt::tx::signer::Signer;
+    use blueprint_sdk::testing::tempfile;
+    use blueprint_sdk::testing::utils::harness::TestHarness;
+    use blueprint_sdk::testing::utils::tangle::node::transactions::{
+        get_next_call_id, submit_job, wait_for_completion_of_tangle_job
+    };
+    use blueprint_sdk::testing::utils::tangle::TangleTestHarness;
+    use color_eyre::eyre::{self, eyre};
+    use gadget_crypto::sp_core::SpEcdsa;
+    use gadget_crypto_tangle_pair_signer::TanglePairSigner;
     use silent_threshold_encryption::kzg::KZG10;
-    use tangle::NodeConfig;
-
-    pub fn setup_testing_log() {
-        use tracing_subscriber::util::SubscriberInitExt;
-        let env_filter = tracing_subscriber::EnvFilter::from_default_env();
-        let _ = tracing_subscriber::fmt::SubscriberBuilder::default()
-            .without_time()
-            .with_target(true)
-            .with_span_events(tracing_subscriber::fmt::format::FmtSpan::NONE)
-            .with_env_filter(env_filter)
-            .with_test_writer()
-            .finish()
-            .try_init();
-    }
 
     #[tokio::test(flavor = "multi_thread")]
     #[allow(clippy::needless_return)]
-    async fn decrypt_ciphertext() {
-        setup_testing_log();
+    async fn decrypt_ciphertext() -> Result<(), eyre::Error> {
+        color_eyre::install()?;
+        logging::setup_log();
 
         const N: usize = 3;
         const T: usize = N / 2 + 1;
-        let node_config = NodeConfig::new(true);
-        new_test_ext_blueprint_manager::<N, 1, _, _, _>(
-            "",
-            run_test_blueprint_manager,
-            node_config,
+
+        logging::info!("Running BLS blueprint test");
+        let tmp_dir = tempfile::TempDir::new()?;
+        let harness = TangleTestHarness::setup(tmp_dir).await?;
+
+        // Setup service
+        let (mut test_env, service_id, blueprint_id) = harness.setup_services::<N>(false).await?;
+        test_env.initialize().await?;
+
+        // Setup the parameters for testing
+        let max_degree = 1 << 10;
+        let tau = <Bn254 as Pairing>::ScalarField::rand(&mut ark_std::test_rng());
+        let params = KZG10::<Bn254, DensePolynomial<<Bn254 as Pairing>::ScalarField>>::setup(
+            max_degree, tau,
+        )
+        .unwrap();
+
+        // Generate keypairs for each party
+        let mut keypairs = Vec::new();
+        for i in 0..N {
+            let keypair =
+                setup::<Bn254>(N as u32, i as u32, &params).expect("Failed to generate keypair");
+            keypairs.push(keypair);
+        }
+
+        let tangle_client = TangleClient::new(*harness.env()).await?;
+        let blueprint_address = api::storage().services().blueprints(blueprint_id);
+        let blueprint = tangle_client
+            .storage()
+            .at_latest()
+            .await?
+            .fetch(&blueprint_address)
+            .await?;
+
+        let (owner, blueprint) = match blueprint {
+            Some((owner, blueprint)) => (owner, blueprint),
+            None => return Err(eyre!("Blueprint not found")),
+        };
+
+        let blueprint_manager_address = match blueprint.manager {
+            BlueprintServiceManager::Evm(contract_address) => contract_address.0.into(),
+        };
+
+        let handles = test_env.node_handles().await;
+        for handle in handles {
+            let config = handle.gadget_config().await;
+            let blueprint_ctx = ServiceContext::new(config.clone(), params, service_id).await?;
+
+            let keygen_job =
+                DecryptCiphertextEventHandler::new(&config, blueprint_ctx.clone()).await?;
+            handle.add_job(keygen_job).await;
+        }
+
+        for (index, keypair) in keypairs.iter().enumerate() {
+            let signer = handlers[index].signer();
+            println!("Registering public key for operator {}", signer.address());
+            let wallet = EthereumWallet::new(signer);
+            let provider = ProviderBuilder::new()
+                .with_recommended_fillers()
+                .wallet(wallet)
+                .on_ws(WsConnect::new(harness.ws_endpoint))
+                .await
+                .unwrap();
+            // Register the STE public keys for each operator with the contract
+            let contract =
+                SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
+
+            let registered_operators = contract.getOperatorsOfService(service_id).call().await;
+            println!("Registered operators: {:?}", registered_operators);
+
+            // Submit the public key
+            contract
+                .registerSTEPublicKey(
+                    service_id,
+                    Bytes::copy_from_slice(keypair.public_key.as_ref()),
+                )
+                .send()
+                .await
+                .expect("Failed to register STE public key")
+                .get_receipt()
+                .await
+                .expect("Failed to get receipt");
+        }
+
+        let call_id = get_next_call_id(&tangle_client)
+            .await
+            .expect("Failed to get next job id")
+            .saturating_sub(1);
+
+        info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
+
+        // Create a mock ciphertext for testing
+        let ciphertext = vec![0u8; 32]; // Mock ciphertext
+        let threshold = Field::Uint16(T as u16);
+        let mut ciphertext_bytes = Vec::new();
+        for i in 0..32 {
+            ciphertext_bytes.push(Field::Uint8(ciphertext[i]));
+        }
+        let ciphertext_field = Field::List(BoundedVec(ciphertext_bytes));
+        let job_args = Args::from([threshold, ciphertext_field]);
+
+        let call_id = get_next_call_id(&tangle_client)
+            .await
+            .expect("Failed to get next job id")
+            .saturating_sub(1);
+        // Submit the decryption job
+        if let Err(err) = submit_job(
+            &tangle_client,
+            handles[0].signer(),
+            service_id,
+            0, // DECRYPT_CIPHERTEXT_JOB_ID
+            job_args,
+            call_id,
         )
         .await
-        .execute_with_async(move |client, handles, svcs, opts| async move {
-            let keypair = handles[0].sr25519_id().clone();
-            let blueprint_manager_address = match svcs.blueprint.manager {
-                BlueprintServiceManager::Evm(contract_address) => contract_address.0.into(),
-            };
+        {
+            error!("Failed to submit job: {err}");
+            panic!("Failed to submit job: {err}");
+        }
 
-            // Setup the parameters for testing
-            let max_degree = 1 << 10;
-            let tau = <Bn254 as Pairing>::ScalarField::rand(&mut ark_std::test_rng());
-            let params = KZG10::<Bn254, DensePolynomial<<Bn254 as Pairing>::ScalarField>>::setup(
-                max_degree, tau,
-            )
-            .unwrap();
-
-            // Generate keypairs for each party
-            let mut keypairs = Vec::new();
-            for i in 0..N {
-                let keypair = setup::<Bn254>(N as u32, i as u32, &params)
-                    .expect("Failed to generate keypair");
-                keypairs.push(keypair);
-            }
-
-            let service = svcs.services.last().unwrap();
-            let service_id = service.id;
-
-            for (index, keypair) in keypairs.iter().enumerate() {
-                let signer = handles[index].ecdsa_id().alloy_key().unwrap();
-                println!("Registering public key for operator {}", signer.address());
-                let wallet = alloy_network::EthereumWallet::from(signer);
-                let provider = alloy_provider::ProviderBuilder::new()
-                    .with_recommended_fillers()
-                    .wallet(wallet)
-                    .on_ws(alloy_provider::WsConnect::new(opts.ws_rpc_url.clone()))
-                    .await
-                    .unwrap();
-                // Register the STE public keys for each operator with the contract
-                let contract =
-                    SilentTimelockEncryptionBlueprint::new(blueprint_manager_address, provider);
-
-                let registered_operators = contract.getOperatorsOfService(service_id).call().await;
-                println!("Registered operators: {:?}", registered_operators);
-
-                // Submit the public key
-                contract
-                    .registerSTEPublicKey(
-                        service_id,
-                        Bytes::copy_from_slice(keypair.public_key.as_ref()),
-                    )
-                    .send()
-                    .await
-                    .expect("Failed to register STE public key")
-                    .get_receipt()
-                    .await
-                    .expect("Failed to get receipt");
-            }
-
-            let call_id = get_next_call_id(client)
-                .await
-                .expect("Failed to get next job id")
-                .saturating_sub(1);
-
-            info!("Submitting job with params service ID: {service_id}, call ID: {call_id}");
-
-            // Create a mock ciphertext for testing
-            let ciphertext = vec![0u8; 32]; // Mock ciphertext
-            let threshold = Field::Uint16(T as u16);
-            let mut ciphertext_bytes = Vec::new();
-            for i in 0..32 {
-                ciphertext_bytes.push(Field::Uint8(ciphertext[i]));
-            }
-            let ciphertext_field = Field::List(BoundedVec(ciphertext_bytes));
-            let job_args = Args::from([threshold, ciphertext_field]);
-
-            let call_id = get_next_call_id(client)
-                .await
-                .expect("Failed to get next job id")
-                .saturating_sub(1);
-            // Submit the decryption job
-            if let Err(err) = submit_job(
-                client, &keypair, service_id, 0, // DECRYPT_CIPHERTEXT_JOB_ID
-                job_args, call_id,
-            )
+        // Wait for job completion
+        let job_results = wait_for_completion_of_tangle_job(&tangle_client, service_id, call_id, T)
             .await
-            {
-                error!("Failed to submit job: {err}");
-                panic!("Failed to submit job: {err}");
-            }
+            .expect("Failed to wait for job completion");
 
-            // Wait for job completion
-            let job_results = wait_for_completion_of_tangle_job(client, service_id, call_id, T)
-                .await
-                .expect("Failed to wait for job completion");
+        // Verify results
+        assert_eq!(job_results.service_id, service_id);
+        assert_eq!(job_results.call_id, call_id);
 
-            // Verify results
-            assert_eq!(job_results.service_id, service_id);
-            assert_eq!(job_results.call_id, call_id);
+        // Deserialize the decryption state
+        let decrypt_state: DecryptState = serde_json::from_slice(&job_results.result.encode())
+            .expect("Failed to deserialize decrypt state");
 
-            // Deserialize the decryption state
-            let decrypt_state: DecryptState = serde_json::from_slice(&job_results.result.encode())
-                .expect("Failed to deserialize decrypt state");
+        // Verify we have enough partial decryptions
+        assert!(decrypt_state.partial_decryptions.len() >= T);
 
-            // Verify we have enough partial decryptions
-            assert!(decrypt_state.partial_decryptions.len() >= T);
+        // Verify we have a decryption result
+        assert!(decrypt_state.decryption_result.is_some());
 
-            // If we're party 0, verify we have a decryption result
-            if handles[0].sr25519_id().account_id() == keypair.account_id() {
-                assert!(decrypt_state.decryption_result.is_some());
-            }
-        })
-        .await;
+        Ok(())
     }
 }

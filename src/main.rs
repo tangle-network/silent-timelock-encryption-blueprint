@@ -1,19 +1,27 @@
-use alloy_network::EthereumWallet;
-use alloy_primitives::{Address, Bytes};
+use api::runtime_types::tangle_primitives::services::service::{
+    BlueprintServiceManager, ServiceBlueprint,
+};
 use ark_bn254::Bn254;
 use ark_ec::pairing::Pairing;
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
+use blueprint_sdk as sdk;
+use blueprint_sdk::alloy::network::EthereumWallet;
+use blueprint_sdk::alloy::primitives::{Address, Bytes};
+use blueprint_sdk::alloy::signers::local::PrivateKeySigner;
+use blueprint_sdk::config::GadgetConfiguration;
+use blueprint_sdk::contexts::keystore::KeystoreContext;
+use blueprint_sdk::contexts::tangle::TangleClientContext;
+use blueprint_sdk::keystore::backends::Backend;
+use blueprint_sdk::runners::core::runner::BlueprintRunner;
+use blueprint_sdk::runners::tangle::tangle::TangleConfig;
+use blueprint_sdk::tangle_subxt::subxt::utils::AccountId32;
+use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
+use blueprint_sdk::utils::evm::get_wallet_provider_http;
 use color_eyre::Result;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::{BlueprintServiceManager, ServiceBlueprint};
-use gadget_sdk as sdk;
-use gadget_sdk::config::StdGadgetConfiguration;
-use gadget_sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
-use gadget_sdk::utils::evm::{get_provider_http, get_wallet_provider_http};
-use sdk::contexts::ServicesContext;
-use sdk::runners::tangle::TangleConfig;
-use sdk::runners::BlueprintRunner;
-use sdk::subxt_core::tx::signer::Signer;
+use gadget_crypto::sp_core::{SpEcdsa, SpEcdsaPair, SpSr25519};
+use gadget_crypto::tangle_pair_signer::sp_core::Pair;
+use gadget_crypto::tangle_pair_signer::TanglePairSigner;
 use silent_threshold_encryption::kzg::{PowersOfTau, KZG10};
 use silent_timelock_encryption_blueprint::context::{ServiceContext, KEYPAIR_KEY};
 use silent_timelock_encryption_blueprint::jobs::DecryptCiphertextEventHandler;
@@ -28,7 +36,12 @@ async fn main() -> Result<()> {
         KZG10::<Bn254, DensePolynomial<<Bn254 as Pairing>::ScalarField>>::setup(max_degree, tau)
             .unwrap();
 
-    let context = ServiceContext::new(env.clone(), params.clone())?;
+    let context = ServiceContext::new(
+        env.clone(),
+        params.clone(),
+        env.protocol_settings.tangle().unwrap().service_id.unwrap(),
+    )
+    .await?;
 
     // Check if keypair exists in local db, otherwise generate and save it
     ensure_keypair_exists(&context, &env, params).await?;
@@ -49,17 +62,17 @@ async fn main() -> Result<()> {
 
 async fn ensure_keypair_exists(
     context: &ServiceContext,
-    env: &StdGadgetConfiguration,
+    env: &GadgetConfiguration,
     params: PowersOfTau<Bn254>,
 ) -> Result<()> {
     if context.secret_key_store.get(KEYPAIR_KEY).is_none() {
-        let client = env.client().await?;
-        let signer = env.first_sr25519_signer()?;
-        let service_id = env.service_id().unwrap();
-        let operators = context.current_service_operators(&client).await?;
+        let client = env.tangle_client().await?;
+        let public = env.keystore().first_local::<SpSr25519>()?;
+        let signer = env.keystore().get_secret::<SpSr25519>(&public)?;
+        let operators = context.current_service_operators_ecdsa_keys().await?;
         let my_operator_position = operators
             .iter()
-            .position(|op| op.0 == signer.account_id())
+            .position(|op| *op.0 == AccountId32::from(signer.0.public().0))
             .expect("operator should be present for the service");
 
         let new_keypair =
@@ -86,7 +99,13 @@ async fn ensure_keypair_exists(
         let blueprint_contract_address = match blueprint.manager {
             BlueprintServiceManager::Evm(address) => Address::from(address.to_fixed_bytes()),
         };
-        submit_ste_public_key(env, service_id, &new_keypair, blueprint_contract_address).await?;
+        submit_ste_public_key(
+            env,
+            context.service_id,
+            &new_keypair,
+            blueprint_contract_address,
+        )
+        .await?;
 
         context.secret_key_store.set(KEYPAIR_KEY, new_keypair);
     }
@@ -95,13 +114,15 @@ async fn ensure_keypair_exists(
 
 /// Submit the STE public key to the blueprint contract for the given service ID
 async fn submit_ste_public_key(
-    env: &StdGadgetConfiguration,
+    env: &GadgetConfiguration,
     service_id: u64,
     keypair: &SilentThresholdEncryptionKeypair,
     blueprint_contract_address: Address,
 ) -> Result<()> {
-    let signer = env.first_ecdsa_signer()?.alloy_key()?;
-    let wallet = EthereumWallet::from(signer);
+    let public_key = env.keystore().first_local::<SpEcdsa>()?;
+    let secret_key = env.keystore().get_secret::<SpEcdsa>(&public_key)?;
+    let signer_seed = PrivateKeySigner::from_slice(&secret_key.seed())?;
+    let wallet = EthereumWallet::new(signer_seed);
     let provider = get_wallet_provider_http(&env.http_rpc_endpoint, wallet);
     let contract = SilentTimelockEncryptionBlueprint::new(blueprint_contract_address, provider);
 

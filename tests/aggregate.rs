@@ -2,9 +2,9 @@ use ark_bn254::Bn254;
 use ark_ec::pairing::{Pairing, PairingOutput};
 use ark_poly::univariate::DensePolynomial;
 use ark_std::UniformRand;
-use blueprint_test_utils::setup_log;
+use blueprint_sdk::logging;
 use rand::thread_rng;
-use round_based::simulation::Simulation;
+use round_based::sim::Simulation;
 use silent_threshold_encryption::encryption::encrypt;
 use silent_threshold_encryption::kzg::KZG10;
 use silent_threshold_encryption::setup::SecretKey;
@@ -15,7 +15,7 @@ use tokio::time::error::Error;
 
 #[tokio::test]
 async fn simulate_decryption() {
-    setup_log();
+    logging::setup_log();
     setup_ste_keys().await;
 }
 

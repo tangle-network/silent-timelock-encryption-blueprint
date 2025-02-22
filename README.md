@@ -1,87 +1,64 @@
-# <h1 align="center"> A Tangle Blueprint 🌐 </h1>
+# <h1 align="center"> Silent Time-lock Encryption Blueprint 🔐 </h1>
 
-**A simple Hello World Blueprint for Tangle**
+A decentralized threshold encryption service built on Tangle Network that enables secure time-locked data encryption and decryption. It uses the silent threshold ecnryption research paper [Silent Threshold Encryption ePrint:2024/263](https://eprint.iacr.org/2024/263) by Sanjam Garg, Dimitris Kolonelos, and Mingyuan Wang.
 
-## 📚 Prerequisites
+The innovative aspect of Silent Threshold Encryption is that it allows for threshold decryption services without any interactive setup. The scheme can be used to create timelock encryption as well, which is useful for a variety of use cases such as random number generation, verifiable delay functions, and more.
 
-Before you can run this project, you will need to have the following software installed on your machine:
+## 🎯 Overview
+
+This Blueprint implements a threshold encryption service where:
+
+- Multiple operators collectively manage encrypted data
+- Users can encrypt data that requires a threshold of operators to decrypt
+- Decryption requests are processed through secure multi-party computation
+- Built using BN254 elliptic curve cryptography and silent threshold encryption
+
+## 🚀 Features
+
+- **Threshold Decryption**: Requires `t-of-n` operators to collaborate for decryption
+- **Secure Key Management**: Each operator maintains their own secret key
+- **On-chain Coordination**: Decryption requests and operator registration handled via smart contracts
+- **Asynchronous Protocol**: Uses Tokio for efficient async communication between operators
+- **Robust Error Handling**: Comprehensive error management for cryptographic operations
+
+## 📋 Prerequisites
 
 - [Rust](https://www.rust-lang.org/tools/install)
 - [Forge](https://getfoundry.sh)
-- [Tangle](https://github.com/tangle-network/tangle?tab=readme-ov-file#-getting-started-)
+- [Tangle](https://github.com/tangle-network/tangle)
+- [cargo-tangle](https://crates.io/crates/cargo-tangle)
 
-You will also need to install [cargo-tangle](https://crates.io/crates/cargo-tangle), our CLI tool for creating and
-deploying Tangle Blueprints:
+## 🛠️ Setup
 
-To install the Tangle CLI, run the following command:
-
-> Supported on Linux, MacOS, and Windows (WSL2)
+1. Install the Tangle CLI:
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/tangle-network/gadget/releases/download/cargo-tangle-v0.1.2/cargo-tangle-installer.sh | sh
+cargo install cargo-tangle --git https://github.com/tangle-network/gadget.git --force
 ```
 
-Or, if you prefer to install the CLI from crates.io:
+2. Create a new project:
 
 ```bash
-cargo install cargo-tangle --force # to get the latest version.
+cargo tangle blueprint create --name silent-timelock
 ```
 
-## 🚀 Getting Started
+## 🔒 Security
 
-Once `cargo-tangle` is installed, you can create a new project with the following command:
+- Uses BN254 elliptic curve for efficient pairing-based cryptography
+- Implements secure multi-party computation for threshold decryption
 
-```sh
-cargo tangle blueprint create --name <project-name>
-```
+## 📚 Documentation
 
-and follow the instructions to create a new project.
+For detailed documentation on the cryptographic protocols and service architecture, please visit:
+[Tangle Documentation](https://docs.tangle.tools/developers/blueprints)
 
-## 🛠️ Development
+## 📄 License
 
-Once you have created a new project, you can run the following command to start the project:
+Licensed under either:
 
-```sh
-cargo build
-```
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT License ([LICENSE-MIT](LICENSE-MIT))
 
-to build the project, and
+## 🤝 Contributing
 
-```sh
-cargo tangle blueprint deploy
-```
-
-to deploy the blueprint to the Tangle network.
-
-## 📚 Overview
-
-This project is about creating a simple Hello World Blueprint for Tangle and EigenLayer.
-Blueprints are specifications for <abbr title="Actively Validated Services">AVS</abbr>s on the Tangle Network. An AVS is
-an off-chain service that runs arbitrary computations for a user-specified period of time.
-
-Blueprints provide a useful abstraction, allowing developers to create reusable service infrastructures as if they were
-smart contracts. This enables developers to monetize their work and align long-term incentives with the success of their
-creations, benefiting proportionally to their Blueprint's usage.
-
-For more details, please refer to the [project documentation](https://docs.tangle.tools/developers/blueprints).
-
-## 📜 License
-
-Licensed under either of
-
-* Apache License, Version 2.0
-  ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-* MIT license
-  ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-
-at your option.
-
-## 📬 Feedback and Contributions
-
-We welcome feedback and contributions to improve this blueprint.
-Please open an issue or submit a pull request on
-our [GitHub repository](https://github.com/tangle-network/blueprint-template/issues).
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
-dual licensed as above, without any additional terms or conditions.
+Contributions welcome! Please feel free to submit a Pull Request.

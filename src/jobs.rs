@@ -1,25 +1,50 @@
-use alloy_primitives::Address;
+use crate::decrypt::{DecryptState, Msg, PartialDecryptionMessage};
+use crate::setup::SilentThresholdEncryptionKeypair;
+use crate::SilentTimelockEncryptionBlueprint;
 use api::services::events::JobCalled;
 use ark_bn254::Bn254;
-use gadget_sdk::compute_sha256_hash;
-use gadget_sdk::contexts::TangleClientContext;
-use gadget_sdk::network::round_based_compat::NetworkDeliveryWrapper;
-use gadget_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::BlueprintServiceManager;
-use gadget_sdk::{self as sdk};
-use sdk::event_listener::tangle::{
-    jobs::{services_post_processor, services_pre_processor},
-    TangleEventListener,
-};
-use sdk::ext::tangle_subxt::tangle_testnet_runtime::api;
+use blueprint_sdk::alloy::primitives::Address;
+use blueprint_sdk::alloy::providers::{ProviderBuilder, WsConnect};
+use blueprint_sdk::event_listeners::tangle::events::TangleEventListener;
+use blueprint_sdk::event_listeners::tangle::services::{services_post_processor, services_pre_processor};
+use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::BlueprintServiceManager;
+use blueprint_sdk as sdk;
+use blueprint_sdk::macros::core::Gadget;
+use blueprint_sdk::networking::round_based_compat::RoundBasedNetworkAdapter;
+use blueprint_sdk::networking::service_handle::NetworkServiceHandle;
+use blueprint_sdk::networking::InstanceMsgPublicKey;
+use blueprint_sdk::stores::local_database::LocalDatabase;
+use color_eyre::eyre;
+use color_eyre::eyre::eyre;
+use color_eyre::{Report, Result};
+use gadget_crypto::hashing::sha2_256;
+use k256::EncodedPoint;
+use round_based::PartyIndex;
+use sdk::clients::GadgetServicesClient;
+use sdk::config::GadgetConfiguration;
+use sdk::contexts::keystore::KeystoreContext;
+use sdk::contexts::tangle::TangleClientContext;
+use sdk::crypto::sp_core::SpSr25519;
+use sdk::crypto::tangle_pair_signer::sp_core;
+use sdk::keystore::backends::Backend;
+use sdk::logging;
+use sdk::macros::contexts::{KeystoreContext, ServicesContext, TangleClientContext};
+use sdk::tangle_subxt;
+use sdk::tangle_subxt::tangle_testnet_runtime::api;
 use silent_threshold_encryption::encryption::Ciphertext;
+use silent_threshold_encryption::kzg::PowersOfTau;
 use silent_threshold_encryption::setup::{AggregateKey, SecretKey};
 use sp_core::ecdsa::Public;
-use std::collections::BTreeMap;
+use std::collections::btree_map::BTreeMap;
+use std::collections::hash_set::HashSet;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tangle_subxt::subxt_core::utils::AccountId32;
 
 use crate::context::{ServiceContext, KEYPAIR_KEY};
 use crate::decrypt::{threshold_decrypt_protocol, DecryptError};
 use crate::setup::from_bytes;
-use crate::SilentTimelockEncryptionBlueprint;
 
 /// Decrypts a ciphertext using the threshold decryption protocol
 #[sdk::job(
@@ -44,7 +69,7 @@ pub async fn decrypt_ciphertext(
             id
         }
         Err(e) => {
-            gadget_sdk::error!("Failed to get blueprint ID: {}", e);
+            blueprint_sdk::logging::error!("Failed to get blueprint ID: {}", e);
             return Err(DecryptError::ContextError(e.to_string()));
         }
     };
@@ -55,20 +80,20 @@ pub async fn decrypt_ciphertext(
         .tangle_client()
         .await
         .map_err(|e| {
-            gadget_sdk::error!("Failed to get tangle client: {}", e);
+            blueprint_sdk::logging::error!("Failed to get tangle client: {}", e);
             DecryptError::ContextError(e.to_string())
         })?
         .storage()
         .at_latest()
         .await
         .map_err(|e| {
-            gadget_sdk::error!("Failed to get latest storage: {}", e);
+            blueprint_sdk::logging::error!("Failed to get latest storage: {}", e);
             DecryptError::ContextError(e.to_string())
         })?
         .fetch(&blueprint_address_key)
         .await
         .map_err(|e| {
-            gadget_sdk::error!("Failed to fetch from storage: {}", e);
+            blueprint_sdk::logging::error!("Failed to fetch from storage: {}", e);
             DecryptError::ContextError(e.to_string())
         })? {
         Some((_, v)) => {
@@ -79,7 +104,7 @@ pub async fn decrypt_ciphertext(
             addr
         }
         None => {
-            gadget_sdk::error!("Blueprint manager address not found in storage");
+            blueprint_sdk::logging::error!("Blueprint manager address not found in storage");
             return Err(DecryptError::ContextError(
                 "Blueprint manager address not found".to_string(),
             ));
@@ -92,7 +117,7 @@ pub async fn decrypt_ciphertext(
             id
         }
         Err(e) => {
-            gadget_sdk::error!("Failed to get call ID: {}", e);
+            blueprint_sdk::logging::error!("Failed to get call ID: {}", e);
             return Err(DecryptError::ContextError(e.to_string()));
         }
     };
@@ -104,7 +129,7 @@ pub async fn decrypt_ciphertext(
     let keypair = match context.secret_key_store.get(KEYPAIR_KEY) {
         Some(k) => k,
         None => {
-            gadget_sdk::error!("Keypair not found in storage");
+            blueprint_sdk::logging::error!("Keypair not found in storage");
             return Err(DecryptError::ContextError("Keypair not found".to_string()));
         }
     };
@@ -119,42 +144,42 @@ pub async fn decrypt_ciphertext(
             (idx, ops)
         }
         Err(e) => {
-            gadget_sdk::error!("Failed to get party info: {}", e);
+            blueprint_sdk::logging::error!("Failed to get party info: {}", e);
             return Err(DecryptError::ContextError(e.to_string()));
         }
     };
 
-    let parties: BTreeMap<u16, Public> = operators
+    let parties: HashMap<u16, InstanceMsgPublicKey> = operators
         .into_iter()
         .enumerate()
-        .map(|(j, (_, ecdsa))| (j as u16, ecdsa))
+        .map(|(j, (_, ecdsa))| (j as PartyIndex, InstanceMsgPublicKey(ecdsa)))
         .collect();
 
-    let num_parties = parties.values().len();
-    println!("Setting up network with {} parties", num_parties);
+    let n = parties.len() as u16;
+    let i = i as u16;
 
-    let (meta_hash, deterministic_hash) =
-        compute_deterministic_hashes(num_parties as u16, blueprint_id, call_id);
-    let network = NetworkDeliveryWrapper::new(
-        context.network_backend.clone(),
-        i as u16,
-        deterministic_hash,
-        parties,
+    logging::info!("Starting Partial Threshold Decryption for party {i}, n={n}");
+
+    let network = RoundBasedNetworkAdapter::<Msg>::new(
+        context.network_handle,
+        i,
+        parties.clone(),
+        crate::context::NETWORK_PROTOCOL,
     );
 
     let party = round_based::party::MpcParty::connected(network);
     let ws_rpc_endpoint = &context.config.ws_rpc_endpoint;
-    let service_id = context.config.service_id().unwrap();
+    let service_id = context.service_id;
 
     println!("Setting up provider and contract");
-    let provider = match alloy_provider::ProviderBuilder::new()
+    let provider = match ProviderBuilder::new()
         .with_recommended_fillers()
-        .on_ws(alloy_provider::WsConnect::new(ws_rpc_endpoint))
+        .on_ws(WsConnect::new(ws_rpc_endpoint))
         .await
     {
         Ok(p) => p,
         Err(e) => {
-            gadget_sdk::error!("Failed to create provider: {}", e);
+            blueprint_sdk::logging::error!("Failed to create provider: {}", e);
             return Err(DecryptError::ContextError(format!(
                 "Failed to create provider: {}",
                 e
@@ -168,7 +193,7 @@ pub async fn decrypt_ciphertext(
     let registered_keys = match contract.getAllSTEPublicKeys(service_id).call().await {
         Ok(v) => v._0,
         Err(e) => {
-            gadget_sdk::error!("Failed to get registered public keys: {}", e);
+            blueprint_sdk::logging::error!("Failed to get registered public keys: {}", e);
             return Err(DecryptError::ContextError(format!(
                 "Failed to get registered public keys: {}",
                 e
@@ -182,9 +207,9 @@ pub async fn decrypt_ciphertext(
     println!("Running decryption protocol");
     let decryption = threshold_decrypt_protocol(
         party,
-        i as u16,
+        i,
         threshold,
-        num_parties as u16,
+        n,
         &secret_key,
         &ciphertext,
         &agg_key,
@@ -196,7 +221,7 @@ pub async fn decrypt_ciphertext(
     let decryption = match serde_json::to_vec(&decryption) {
         Ok(d) => d,
         Err(e) => {
-            gadget_sdk::error!("Failed to serialize decryption: {}", e);
+            blueprint_sdk::logging::error!("Failed to serialize decryption: {}", e);
             return Err(DecryptError::SerializationError(e.to_string()));
         }
     };
@@ -210,14 +235,17 @@ pub const META_SALT: &str = "silent";
 
 /// Helper function to compute deterministic hashes for the keygen process
 fn compute_deterministic_hashes(n: u16, blueprint_id: u64, call_id: u64) -> ([u8; 32], [u8; 32]) {
-    let meta_hash = compute_sha256_hash!(
-        n.to_be_bytes(),
-        blueprint_id.to_be_bytes(),
-        call_id.to_be_bytes(),
-        META_SALT
-    );
+    let mut meta_bytes = Vec::new();
+    meta_bytes.extend_from_slice(&n.to_be_bytes());
+    meta_bytes.extend_from_slice(&blueprint_id.to_be_bytes());
+    meta_bytes.extend_from_slice(&call_id.to_be_bytes());
+    meta_bytes.extend_from_slice(META_SALT.as_bytes());
+    let meta_hash = sha2_256(&meta_bytes);
 
-    let deterministic_hash = compute_sha256_hash!(meta_hash.as_ref(), KEYGEN_SALT);
+    let mut deterministic_bytes = Vec::new();
+    deterministic_bytes.extend_from_slice(&meta_hash);
+    deterministic_bytes.extend_from_slice(KEYGEN_SALT.as_bytes());
+    let deterministic_hash = sha2_256(&deterministic_bytes);
 
     (meta_hash, deterministic_hash)
 }

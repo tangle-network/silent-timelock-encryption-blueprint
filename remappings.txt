@@ -1,2 +1,4 @@
 @openzeppelin-contracts-5.2.0-rc.0/=dependencies/@openzeppelin-contracts-5.2.0-rc.0/
-tnt-core/=dependencies/tnt-core-0.1.0/src
+forge-std-1.9.4/=dependencies/forge-std-1.9.4/
+tnt-core/=dependencies/tnt-core
+tnt-core/=dependencies/tnt-core-0.3.0/src

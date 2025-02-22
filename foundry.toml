@@ -9,7 +9,7 @@ libs = ["dependencies"]
 
 auto_detect_remappings = true
 [dependencies]
-tnt-core = { version = "0.1.0", git = "https://github.com/tangle-network/tnt-core.git", branch = "main" }
+tnt-core = { version = "0.3.0" }
 forge-std = "1.9.4"
 "@openzeppelin-contracts" = "5.2.0-rc.0"
 

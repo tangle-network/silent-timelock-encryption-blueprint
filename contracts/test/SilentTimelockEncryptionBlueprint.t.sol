@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0 <0.9.0;
 
 import "../src/SilentTimelockEncryptionBlueprint.sol";
-import "dependencies/tnt-core-0.1.0/src/BlueprintServiceManagerBase.sol";
+import "dependencies/tnt-core-0.3.0/src/BlueprintServiceManagerBase.sol";
 import "dependencies/forge-std-1.9.4/src/Test.sol";
 import "dependencies/forge-std-1.9.4/src/console.sol";
 import "dependencies/@openzeppelin-contracts-5.2.0-rc.0/utils/Bytes.sol";
@@ -66,7 +66,7 @@ contract SilentTimelockEncryptionBlueprintTest is Test {
             requestInputs: "",
             permittedCallers: permittedCallers,
             ttl: 0,
-            paymentAsset: ServiceOperators.Asset({kind: ServiceOperators.AssetKind.Custom, data: bytes32(0)}),
+            paymentAsset: Assets.Asset({kind: Assets.Kind.Custom, data: bytes32(0)}),
             amount: 0
         });
         vm.startPrank(0x0000000000000000000000000000000000000000);
