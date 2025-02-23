@@ -1,5 +1,4 @@
-use crate::decrypt::{DecryptState, Msg, PartialDecryptionMessage};
-use crate::setup::SilentThresholdEncryptionKeypair;
+use crate::decrypt::Msg;
 use crate::SilentTimelockEncryptionBlueprint;
 use api::services::events::JobCalled;
 use ark_bn254::Bn254;
@@ -9,38 +8,16 @@ use blueprint_sdk::event_listeners::tangle::events::TangleEventListener;
 use blueprint_sdk::event_listeners::tangle::services::{services_post_processor, services_pre_processor};
 use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::BlueprintServiceManager;
 use blueprint_sdk as sdk;
-use blueprint_sdk::macros::core::Gadget;
 use blueprint_sdk::networking::round_based_compat::RoundBasedNetworkAdapter;
-use blueprint_sdk::networking::service_handle::NetworkServiceHandle;
 use blueprint_sdk::networking::InstanceMsgPublicKey;
-use blueprint_sdk::stores::local_database::LocalDatabase;
-use color_eyre::eyre;
-use color_eyre::eyre::eyre;
-use color_eyre::{Report, Result};
-use gadget_crypto::hashing::sha2_256;
-use k256::EncodedPoint;
+use color_eyre::Result;
 use round_based::PartyIndex;
-use sdk::clients::GadgetServicesClient;
-use sdk::config::GadgetConfiguration;
-use sdk::contexts::keystore::KeystoreContext;
 use sdk::contexts::tangle::TangleClientContext;
-use sdk::crypto::sp_core::SpSr25519;
-use sdk::crypto::tangle_pair_signer::sp_core;
-use sdk::keystore::backends::Backend;
 use sdk::logging;
-use sdk::macros::contexts::{KeystoreContext, ServicesContext, TangleClientContext};
-use sdk::tangle_subxt;
 use sdk::tangle_subxt::tangle_testnet_runtime::api;
 use silent_threshold_encryption::encryption::Ciphertext;
-use silent_threshold_encryption::kzg::PowersOfTau;
 use silent_threshold_encryption::setup::{AggregateKey, SecretKey};
-use sp_core::ecdsa::Public;
-use std::collections::btree_map::BTreeMap;
-use std::collections::hash_set::HashSet;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tangle_subxt::subxt_core::utils::AccountId32;
 
 use crate::context::{ServiceContext, KEYPAIR_KEY};
 use crate::decrypt::{threshold_decrypt_protocol, DecryptError};
@@ -228,24 +205,4 @@ pub async fn decrypt_ciphertext(
 
     println!("Decrypt ciphertext job completed successfully");
     Ok(decryption)
-}
-
-pub const KEYGEN_SALT: &str = "silent_timelock_encryption";
-pub const META_SALT: &str = "silent";
-
-/// Helper function to compute deterministic hashes for the keygen process
-fn compute_deterministic_hashes(n: u16, blueprint_id: u64, call_id: u64) -> ([u8; 32], [u8; 32]) {
-    let mut meta_bytes = Vec::new();
-    meta_bytes.extend_from_slice(&n.to_be_bytes());
-    meta_bytes.extend_from_slice(&blueprint_id.to_be_bytes());
-    meta_bytes.extend_from_slice(&call_id.to_be_bytes());
-    meta_bytes.extend_from_slice(META_SALT.as_bytes());
-    let meta_hash = sha2_256(&meta_bytes);
-
-    let mut deterministic_bytes = Vec::new();
-    deterministic_bytes.extend_from_slice(&meta_hash);
-    deterministic_bytes.extend_from_slice(KEYGEN_SALT.as_bytes());
-    let deterministic_hash = sha2_256(&deterministic_bytes);
-
-    (meta_hash, deterministic_hash)
 }

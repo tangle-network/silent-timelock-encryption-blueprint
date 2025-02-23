@@ -19,7 +19,7 @@ mod e2e {
     use crate::decrypt::DecryptState;
     use crate::jobs::DecryptCiphertextEventHandler;
     use crate::setup::setup;
-    use alloy_primitives::Bytes;
+    use blueprint_sdk::alloy::primitives::Bytes;
     use api::runtime_types::bounded_collections::bounded_vec::BoundedVec;
     use api::runtime_types::tangle_primitives::services::field::Field;
     use api::services::calls::types::call::Args;
@@ -29,21 +29,22 @@ mod e2e {
     use ark_std::UniformRand;
     use blueprint_sdk::alloy::network::EthereumWallet;
     use blueprint_sdk::alloy::providers::{ProviderBuilder, WsConnect};
+    use blueprint_sdk::alloy::signers::local::PrivateKeySigner;
+    use blueprint_sdk::contexts::keystore::KeystoreContext;
     use blueprint_sdk::contexts::tangle::TangleClient;
+    use blueprint_sdk::keystore::backends::Backend;
     use blueprint_sdk::logging::{self, error, info};
     use blueprint_sdk::tangle_subxt::parity_scale_codec::Encode;
     use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api;
     use blueprint_sdk::tangle_subxt::tangle_testnet_runtime::api::runtime_types::tangle_primitives::services::service::BlueprintServiceManager;
-    use blueprint_sdk::tangle_subxt::subxt::tx::signer::Signer;
     use blueprint_sdk::testing::tempfile;
     use blueprint_sdk::testing::utils::harness::TestHarness;
     use blueprint_sdk::testing::utils::tangle::node::transactions::{
-        get_next_call_id, submit_job, wait_for_completion_of_tangle_job
+        get_next_call_id, submit_job, wait_for_completion_of_tangle_job,
     };
     use blueprint_sdk::testing::utils::tangle::TangleTestHarness;
     use color_eyre::eyre::{self, eyre};
     use gadget_crypto::sp_core::SpEcdsa;
-    use gadget_crypto_tangle_pair_signer::TanglePairSigner;
     use silent_threshold_encryption::kzg::KZG10;
 
     #[tokio::test(flavor = "multi_thread")]
@@ -79,7 +80,7 @@ mod e2e {
             keypairs.push(keypair);
         }
 
-        let tangle_client = TangleClient::new(*harness.env()).await?;
+        let tangle_client = TangleClient::new(harness.env().clone()).await?;
         let blueprint_address = api::storage().services().blueprints(blueprint_id);
         let blueprint = tangle_client
             .storage()
@@ -88,7 +89,7 @@ mod e2e {
             .fetch(&blueprint_address)
             .await?;
 
-        let (owner, blueprint) = match blueprint {
+        let (_, blueprint) = match blueprint {
             Some((owner, blueprint)) => (owner, blueprint),
             None => return Err(eyre!("Blueprint not found")),
         };
@@ -98,9 +99,12 @@ mod e2e {
         };
 
         let handles = test_env.node_handles().await;
-        for handle in handles {
+        let binding = handles.clone();
+        let first_signer = binding[0].signer();
+        for handle in &handles {
             let config = handle.gadget_config().await;
-            let blueprint_ctx = ServiceContext::new(config.clone(), params, service_id).await?;
+            let blueprint_ctx =
+                ServiceContext::new(config.clone(), params.clone(), service_id).await?;
 
             let keygen_job =
                 DecryptCiphertextEventHandler::new(&config, blueprint_ctx.clone()).await?;
@@ -108,13 +112,24 @@ mod e2e {
         }
 
         for (index, keypair) in keypairs.iter().enumerate() {
-            let signer = handlers[index].signer();
+            let public_key = handles[index]
+                .clone()
+                .gadget_config()
+                .await
+                .keystore()
+                .first_local::<SpEcdsa>()?;
+            let secret_key = handles[index]
+                .gadget_config()
+                .await
+                .keystore()
+                .get_secret::<SpEcdsa>(&public_key)?;
+            let signer = PrivateKeySigner::from_slice(&secret_key.seed())?;
             println!("Registering public key for operator {}", signer.address());
             let wallet = EthereumWallet::new(signer);
             let provider = ProviderBuilder::new()
                 .with_recommended_fillers()
                 .wallet(wallet)
-                .on_ws(WsConnect::new(harness.ws_endpoint))
+                .on_ws(WsConnect::new(harness.ws_endpoint.clone()))
                 .await
                 .unwrap();
             // Register the STE public keys for each operator with the contract
@@ -162,7 +177,7 @@ mod e2e {
         // Submit the decryption job
         if let Err(err) = submit_job(
             &tangle_client,
-            handles[0].signer(),
+            first_signer,
             service_id,
             0, // DECRYPT_CIPHERTEXT_JOB_ID
             job_args,
